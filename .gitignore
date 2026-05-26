@@ -26,5 +26,5 @@ run
 # Files from Forge MDK
 forge*changelog.txt
 
-# ExternalProjects
-ExternalProjects/
+### VS Code ###
+.vscode/
