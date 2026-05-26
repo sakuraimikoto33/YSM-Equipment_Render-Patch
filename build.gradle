@@ -1,0 +1,132 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '1.0.17'
+}
+
+version = mod_version
+group = mod_group_id
+def ysmJarFile = layout.projectDirectory.file("libs/${ysm_file_name}")
+
+base {
+    archivesName = 'curios-ysm-render-patch'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+repositories {
+    maven { url = 'https://maven.neoforged.net/releases' }
+    maven {
+        name = 'Curios'
+        url = 'https://maven.theillusivec4.top/'
+    }
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+}
+
+configurations {
+    ysmMaven
+}
+
+dependencies {
+    implementation "net.neoforged:neoforge:${neo_version}"
+    runtimeOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+    compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
+    ysmMaven "maven.modrinth:yes-steve-model:${ysm_version}"
+    compileOnly files(ysmJarFile).builtBy('resolveYsmJar')
+}
+
+tasks.register('resolveYsmJar') {
+    outputs.file(ysmJarFile)
+
+    doLast {
+        var output = ysmJarFile.asFile
+        if (output.exists()) {
+            return
+        }
+
+        output.parentFile.mkdirs()
+
+        try {
+            var resolved = configurations.ysmMaven.resolve().find { it.name.endsWith('.jar') }
+            if (resolved != null) {
+                java.nio.file.Files.copy(resolved.toPath(), output.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                logger.lifecycle("Resolved Yes Steve Model from Maven: ${resolved.name}")
+                return
+            }
+        } catch (Exception ex) {
+            logger.lifecycle("Could not resolve Yes Steve Model from Maven; falling back to Modrinth direct download.")
+        }
+
+        var apiUrl = "https://api.modrinth.com/v2/project/${ysm_modrinth_project}/version"
+        var connection = new URI(apiUrl).toURL().openConnection()
+        connection.setRequestProperty('User-Agent', "${mod_id}/${mod_file_version} (build script)")
+
+        var versions = new groovy.json.JsonSlurper().parse(connection.inputStream)
+        var version = versions.find { it.version_number == ysm_version }
+        if (version == null) {
+            throw new GradleException("Could not find Yes Steve Model ${ysm_version} on Modrinth.")
+        }
+
+        var file = version.files.find { it.primary && it.filename == ysm_file_name }
+            ?: version.files.find { it.primary && it.filename.endsWith('.jar') }
+            ?: version.files.find { it.filename == ysm_file_name }
+            ?: version.files.find { it.filename.endsWith('.jar') }
+        if (file == null) {
+            throw new GradleException("Could not find a downloadable Yes Steve Model jar for ${ysm_version}.")
+        }
+
+        logger.lifecycle("Downloading Yes Steve Model from Modrinth: ${file.filename}")
+        output.withOutputStream { stream ->
+            new URI(file.url).toURL().withInputStream { input ->
+                stream << input
+            }
+        }
+    }
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+        minecraft_version      : minecraft_version,
+        minecraft_version_range: minecraft_version_range,
+        neo_version            : neo_version,
+        neo_version_range      : neo_version_range,
+        loader_version_range   : loader_version_range,
+        mod_id                 : mod_id,
+        mod_name               : mod_name,
+        mod_license            : mod_license,
+        mod_version            : mod_version,
+        mod_authors            : mod_authors,
+        mod_description        : mod_description,
+        curios_version_range   : curios_version_range,
+        ysm_version_range      : ysm_version_range,
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    dependsOn tasks.named('resolveYsmJar')
+}
+
+tasks.withType(Jar).configureEach {
+    archiveVersion = mod_file_version
+}
