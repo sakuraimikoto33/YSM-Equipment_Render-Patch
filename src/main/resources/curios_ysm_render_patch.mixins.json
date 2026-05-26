@@ -4,7 +4,8 @@
   "package": "net.okitsu.curiosysmrenderpatch.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "YesSteveModelElytraHelperMixin"
+    "YesSteveModelElytraHelperMixin",
+    "YesSteveModelLanternLayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
