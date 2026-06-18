@@ -8,6 +8,8 @@ import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.capabilities.EntityCapability;
 import net.neoforged.neoforge.items.IItemHandler;
 
+import java.lang.reflect.Method;
+
 public final class ElytraEquipmentLookup {
     private static final EntityCapability<IItemHandler, Void> CURIOS_INVENTORY =
             EntityCapability.createVoid(ResourceLocation.fromNamespaceAndPath("curios", "item_handler"), IItemHandler.class);
@@ -36,6 +38,65 @@ public final class ElytraEquipmentLookup {
     }
 
     private static boolean shouldRenderElytra(ItemStack stack, LivingEntity entity) {
+        if (DraconicEvolutionElytraCompat.isDraconicModularArmor(stack)) {
+            return DraconicEvolutionElytraCompat.shouldRenderElytra(stack, entity);
+        }
         return stack.getItem() == Items.ELYTRA || stack.canElytraFly(entity);
+    }
+
+    private static final class DraconicEvolutionElytraCompat {
+        private static final Class<?> MODULAR_ARMOR_CLASS = findClass(
+                "com.brandon3055.draconicevolution.items.equipment.IModularArmor"
+        );
+        private static final Method DE_ELYTRA_VISIBLE = findMethod(
+                "com.brandon3055.draconicevolution.init.DEClient",
+                "deElytraVisible",
+                ItemStack.class,
+                LivingEntity.class
+        );
+
+        private DraconicEvolutionElytraCompat() {
+        }
+
+        private static boolean isDraconicModularArmor(ItemStack stack) {
+            return !stack.isEmpty()
+                    && MODULAR_ARMOR_CLASS != null
+                    && MODULAR_ARMOR_CLASS.isInstance(stack.getItem());
+        }
+
+        private static boolean shouldRenderElytra(ItemStack stack, LivingEntity entity) {
+            if (DE_ELYTRA_VISIBLE == null) {
+                return false;
+            }
+
+            try {
+                return Boolean.TRUE.equals(DE_ELYTRA_VISIBLE.invoke(null, stack, entity));
+            } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+                return false;
+            }
+        }
+
+        private static Class<?> findClass(String className) {
+            try {
+                return Class.forName(className, false, ElytraEquipmentLookup.class.getClassLoader());
+            } catch (ClassNotFoundException | LinkageError exception) {
+                return null;
+            }
+        }
+
+        private static Method findMethod(String className, String methodName, Class<?>... parameterTypes) {
+            Class<?> owner = findClass(className);
+            if (owner == null) {
+                return null;
+            }
+
+            try {
+                Method method = owner.getMethod(methodName, parameterTypes);
+                method.setAccessible(true);
+                return method;
+            } catch (ReflectiveOperationException | LinkageError exception) {
+                return null;
+            }
+        }
     }
 }

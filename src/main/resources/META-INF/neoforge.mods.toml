@@ -39,3 +39,10 @@ config="${mod_id}.mixins.json"
     versionRange="${curios_version_range}"
     ordering="AFTER"
     side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="draconicevolution"
+    type="optional"
+    versionRange="${draconic_evolution_version_range}"
+    ordering="AFTER"
+    side="CLIENT"
