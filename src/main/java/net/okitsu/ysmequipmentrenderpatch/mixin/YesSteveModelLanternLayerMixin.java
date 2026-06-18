@@ -1,8 +1,8 @@
-package net.okitsu.curiosysmrenderpatch.mixin;
+package net.okitsu.ysmequipmentrenderpatch.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.okitsu.curiosysmrenderpatch.client.CuriosLanternYsmRenderer;
+import net.okitsu.ysmequipmentrenderpatch.client.LanternYsmRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Coerce;
@@ -16,7 +16,7 @@ public final class YesSteveModelLanternLayerMixin {
             at = @At("RETURN"),
             remap = false
     )
-    private void curiosYsmRenderPatch$renderCuriosLanterns(
+    private void ysmEquipmentRenderPatch$renderLanterns(
             PoseStack poseStack,
             MultiBufferSource bufferSource,
             int packedLight,
@@ -29,6 +29,6 @@ public final class YesSteveModelLanternLayerMixin {
             float headPitch,
             CallbackInfo ci
     ) {
-        CuriosLanternYsmRenderer.render(poseStack, bufferSource, packedLight, customPlayerEntity, partialTick);
+        LanternYsmRenderer.render(poseStack, bufferSource, packedLight, customPlayerEntity, partialTick);
     }
 }

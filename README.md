@@ -1,4 +1,4 @@
-# Curios Yes Steve Model Render Patch
+# YSM Equipment Render Patch
 
 - [English](#english)
 - [日本語](#japanese)
@@ -8,9 +8,9 @@
 
 ### Overview
 
-Curios Yes Steve Model Render Patch is a small client-side compatibility patch that lets equipment worn through Curios appear correctly when using Yes Steve Model.
+YSM Equipment Render Patch is a small client-side compatibility patch that lets supported equipment appear correctly when using Yes Steve Model.
 
-It currently supports rendering Elytra and Lantern equipped in Curios slots.
+It currently supports rendering chest equipment with Elytra functionality. When Curios is installed, it also supports Elytra and Lantern items equipped in Curios slots.
 
 ### Requirements
 
@@ -18,23 +18,20 @@ It currently supports rendering Elytra and Lantern equipped in Curios slots.
 | --- | --- |
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.228+ |
-| Curios | 9.5.1+1.21.1+ |
 | Yes Steve Model | 2.6.5-neoforge+mc1.21.1 |
+| Curios | 9.5.1+1.21.1+ — optional, for Curios slot equipment |
 
 ### Features
 
-- Displays Elytra equipped through Curios on the active YSM model.
-- Displays Lantern equipped through Curios on the active YSM model.
+- Displays chest equipment with Elytra functionality on the active YSM model.
+- Displays Elytra and Lantern items equipped through Curios on the active YSM model when Curios is installed.
+- Requires another mod to equip Elytra or Lantern items in Curios slots; this mod only patches rendering.
 - Applies simple swing physics to rendered lanterns.
 - Works as a lightweight client-side render patch without adding new gameplay mechanics.
 
-### Credits
-
-The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modrinth.com/mod/immersive-lanterns).
-
 ### Installation
 
-Download `curios-ysm-render-patch-<version>.jar` and place it in the client-side `mods/` folder. Make sure Curios and Yes Steve Model are also installed.
+Download `ysm-equipment-render-patch-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model is installed. Install Curios and a compatible equipment-slot mod only when using Curios slot Elytra or Lantern items.
 
 ### Building
 
@@ -48,14 +45,18 @@ Download `curios-ysm-render-patch-<version>.jar` and place it in the client-side
 
 The built jar will be generated in `build/libs/`.
 
+### Credits
+
+The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modrinth.com/mod/immersive-lanterns).
+
 <a id="japanese"></a>
 ## 日本語
 
 ### 概要
 
-Curios Yes Steve Model Render Patch は、Yes Steve Model 使用時に Curios で装備している一部装備を正しく表示するための、小さなクライアント側互換パッチです。
+YSM Equipment Render Patch は、Yes Steve Model 使用時に対応装備を正しく表示するための、小さなクライアント側互換パッチです。
 
-現在は、Curios に装備したエリトラとランタンの描画に対応しています。
+現在は、エリトラ機能を持つチェスト装備の描画に対応しています。Curios 導入時は、Curios スロットに装備したエリトラとランタンの描画にも対応します。
 
 ### 要件
 
@@ -63,23 +64,20 @@ Curios Yes Steve Model Render Patch は、Yes Steve Model 使用時に Curios �
 | --- | --- |
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.228+ |
-| Curios | 9.5.1+1.21.1+ |
 | Yes Steve Model | 2.6.5-neoforge+mc1.21.1 |
+| Curios | 9.5.1+1.21.1+ — 任意、Curios スロット装備用 |
 
 ### 特徴
 
-- Curios に装備した エリトラ を使用中の YSM モデル上に表示します。
-- Curios に装備した ランタン を使用中の YSM モデル上に表示します。
+- エリトラ機能を持つチェスト装備を使用中の YSM モデル上に表示します。
+- Curios 導入時、Curios に装備したエリトラとランタンを使用中の YSM モデル上に表示します。
+- エリトラやランタンを Curios スロットに装備するには別の mod が必要です。この mod は描画のみを補正します。
 - 表示されたランタンに簡易的な揺れを適用します。
 - 新しいゲーム要素を追加せず、描画だけを補正する軽量なクライアント側パッチです。
 
-### クレジット
-
-ランタンの揺れ挙動は [Toni's Immersive Lanterns](https://modrinth.com/mod/immersive-lanterns) の揺れ方を利用しています。
-
 ### インストール方法
 
-`curios-ysm-render-patch-<version>.jar`をダウンロードし、クライアント側の`mods/`フォルダに入れてください。Curios と Yes Steve Model もインストールされていることを確認してください。
+`ysm-equipment-render-patch-<version>.jar`をダウンロードし、クライアント側の`mods/`フォルダに入れてください。Yes Steve Model がインストールされていることを確認してください。Curios スロットのエリトラやランタンを使用する場合のみ、Curios と対応する装備スロット追加 mod も導入してください。
 
 ### ビルド方法
 
@@ -92,3 +90,7 @@ Curios Yes Steve Model Render Patch は、Yes Steve Model 使用時に Curios �
 ```
 
 ビルドされた jar は `build/libs/` に生成されます。
+
+### クレジット
+
+ランタンの揺れ挙動は [Toni's Immersive Lanterns](https://modrinth.com/mod/immersive-lanterns) の揺れ方を利用しています。

@@ -1,4 +1,4 @@
-package net.okitsu.curiosysmrenderpatch.client;
+package net.okitsu.ysmequipmentrenderpatch.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LanternBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.okitsu.curiosysmrenderpatch.compat.CuriosLanternLookup;
+import net.okitsu.ysmequipmentrenderpatch.compat.LanternEquipmentLookup;
 import org.joml.Quaternionf;
 
 import java.lang.reflect.Method;
@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class CuriosLanternYsmRenderer {
+public final class LanternYsmRenderer {
     private static final String CUSTOM_PLAYER_ENTITY_CLASS = "com.elfmcys.yesstevemodel.OOoOoO0o0o0o000OO0o0ooo0";
     private static final String ANIMATED_GEO_MODEL_CLASS = "com.elfmcys.yesstevemodel.o0ooO0ooO00oo0o00Oo00000";
     private static final String RENDER_UTILS_CLASS = "com.elfmcys.yesstevemodel.oOOOOOOO0ooOo0OoOOO0ooOO";
@@ -40,7 +40,7 @@ public final class CuriosLanternYsmRenderer {
             List.class
     );
 
-    private CuriosLanternYsmRenderer() {
+    private LanternYsmRenderer() {
     }
 
     public static void render(
@@ -56,7 +56,7 @@ public final class CuriosLanternYsmRenderer {
             return;
         }
 
-        List<CuriosLanternLookup.LanternCurio> lanterns = CuriosLanternLookup.findVisibleLanterns(entity);
+        List<LanternEquipmentLookup.LanternEntry> lanterns = LanternEquipmentLookup.findLanterns(entity);
         if (lanterns.isEmpty()) {
             return;
         }
@@ -66,7 +66,7 @@ public final class CuriosLanternYsmRenderer {
 
         for (int i = 0; i < lanterns.size(); i++) {
             ItemStack stack = lanterns.get(i).stack();
-            if (!CuriosLanternLookup.isRenderableBlockLantern(stack)) {
+            if (!LanternEquipmentLookup.isRenderableBlockLantern(stack)) {
                 continue;
             }
 
@@ -116,9 +116,9 @@ public final class CuriosLanternYsmRenderer {
             int packedLight,
             float partialTick
     ) {
-        Block block = CuriosLanternLookup.blockFor(stack);
+        Block block = LanternEquipmentLookup.blockFor(stack);
         BlockState blockState = block.defaultBlockState();
-        if (CuriosLanternLookup.shouldHang(block) && blockState.hasProperty(LanternBlock.HANGING)) {
+        if (LanternEquipmentLookup.shouldHang(block) && blockState.hasProperty(LanternBlock.HANGING)) {
             blockState = blockState.setValue(LanternBlock.HANGING, true);
         }
 

@@ -27,15 +27,15 @@ config="${mod_id}.mixins.json"
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
-    modId="curios"
+    modId="yes_steve_model"
     type="required"
-    versionRange="${curios_version_range}"
+    versionRange="${ysm_version_range}"
     ordering="AFTER"
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
-    modId="yes_steve_model"
-    type="required"
-    versionRange="${ysm_version_range}"
+    modId="curios"
+    type="optional"
+    versionRange="${curios_version_range}"
     ordering="AFTER"
     side="CLIENT"

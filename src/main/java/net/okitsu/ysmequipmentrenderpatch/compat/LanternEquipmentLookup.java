@@ -1,6 +1,5 @@
-package net.okitsu.curiosysmrenderpatch.compat;
+package net.okitsu.ysmequipmentrenderpatch.compat;
 
-import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -11,43 +10,35 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LanternBlock;
-import top.theillusivec4.curios.api.CuriosApi;
-import top.theillusivec4.curios.api.SlotContext;
-import top.theillusivec4.curios.api.type.inventory.IDynamicStackHandler;
+import net.neoforged.neoforge.capabilities.EntityCapability;
+import net.neoforged.neoforge.items.IItemHandler;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public final class CuriosLanternLookup {
+public final class LanternEquipmentLookup {
+    private static final EntityCapability<IItemHandler, Void> CURIOS_INVENTORY =
+            EntityCapability.createVoid(ResourceLocation.fromNamespaceAndPath("curios", "item_handler"), IItemHandler.class);
     private static final TagKey<Item> CURIOS_LANTERN_TAG = itemTag("curios", "lantern");
     private static final TagKey<Item> CURIOS_BELT_TAG = itemTag("curios", "belt");
     private static final TagKey<Item> ACCESSORIFY_LANTERNS_TAG = itemTag("accessorify", "lanterns");
 
-    private CuriosLanternLookup() {
+    private LanternEquipmentLookup() {
     }
 
-    public static List<LanternCurio> findVisibleLanterns(LivingEntity entity) {
-        List<LanternCurio> lanterns = new ArrayList<>();
-        CuriosApi.getCuriosInventory(entity).ifPresent(handler -> handler.getCurios().forEach((slotId, stacksHandler) -> {
-            IDynamicStackHandler stackHandler = stacksHandler.getStacks();
-            IDynamicStackHandler cosmeticStacksHandler = stacksHandler.getCosmeticStacks();
-            NonNullList<Boolean> renderStates = stacksHandler.getRenders();
+    public static List<LanternEntry> findLanterns(LivingEntity entity) {
+        List<LanternEntry> lanterns = new ArrayList<>();
+        IItemHandler curiosInventory = entity.getCapability(CURIOS_INVENTORY);
+        if (curiosInventory == null) {
+            return lanterns;
+        }
 
-            for (int slot = 0; slot < stackHandler.getSlots(); slot++) {
-                boolean renderable = renderStates.size() > slot && renderStates.get(slot);
-                ItemStack stack = cosmeticStacksHandler.getStackInSlot(slot);
-                boolean cosmetic = true;
-
-                if (stack.isEmpty() && renderable) {
-                    stack = stackHandler.getStackInSlot(slot);
-                    cosmetic = false;
-                }
-
-                if (isSupportedLantern(stack)) {
-                    lanterns.add(new LanternCurio(stack, new SlotContext(slotId, entity, slot, cosmetic, renderable)));
-                }
+        for (int slot = 0; slot < curiosInventory.getSlots(); slot++) {
+            ItemStack stack = curiosInventory.getStackInSlot(slot);
+            if (isSupportedLantern(stack)) {
+                lanterns.add(new LanternEntry(stack));
             }
-        }));
+        }
         return lanterns;
     }
 
@@ -87,6 +78,6 @@ public final class CuriosLanternLookup {
         return TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace, path));
     }
 
-    public record LanternCurio(ItemStack stack, SlotContext slotContext) {
+    public record LanternEntry(ItemStack stack) {
     }
 }

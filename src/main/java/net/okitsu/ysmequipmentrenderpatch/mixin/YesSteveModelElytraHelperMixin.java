@@ -1,8 +1,8 @@
-package net.okitsu.curiosysmrenderpatch.mixin;
+package net.okitsu.ysmequipmentrenderpatch.mixin;
 
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
-import net.okitsu.curiosysmrenderpatch.compat.CuriosElytraLookup;
+import net.okitsu.ysmequipmentrenderpatch.compat.ElytraEquipmentLookup;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -16,7 +16,7 @@ public final class YesSteveModelElytraHelperMixin {
             cancellable = true,
             remap = false
     )
-    private static void curiosYsmRenderPatch$findCuriosElytra(
+    private static void ysmEquipmentRenderPatch$findElytra(
             LivingEntity entity,
             CallbackInfoReturnable<ItemStack> cir
     ) {
@@ -24,9 +24,9 @@ public final class YesSteveModelElytraHelperMixin {
             return;
         }
 
-        ItemStack curiosElytra = CuriosElytraLookup.findElytra(entity);
-        if (!curiosElytra.isEmpty()) {
-            cir.setReturnValue(curiosElytra);
+        ItemStack equipmentElytra = ElytraEquipmentLookup.findElytra(entity);
+        if (!equipmentElytra.isEmpty()) {
+            cir.setReturnValue(equipmentElytra);
         }
     }
 }

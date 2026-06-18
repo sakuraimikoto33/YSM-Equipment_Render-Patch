@@ -8,7 +8,7 @@ group = mod_group_id
 def ysmJarFile = layout.projectDirectory.file("libs/${ysm_file_name}")
 
 base {
-    archivesName = 'curios-ysm-render-patch'
+    archivesName = 'ysm-equipment-render-patch'
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -26,10 +26,6 @@ neoForge {
 repositories {
     maven { url = 'https://maven.neoforged.net/releases' }
     maven {
-        name = 'Curios'
-        url = 'https://maven.theillusivec4.top/'
-    }
-    maven {
         name = 'Modrinth'
         url = 'https://api.modrinth.com/maven'
         content {
@@ -44,8 +40,6 @@ configurations {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
-    runtimeOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
-    compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
     ysmMaven "maven.modrinth:yes-steve-model:${ysm_version}"
     compileOnly files(ysmJarFile).builtBy('resolveYsmJar')
 }
