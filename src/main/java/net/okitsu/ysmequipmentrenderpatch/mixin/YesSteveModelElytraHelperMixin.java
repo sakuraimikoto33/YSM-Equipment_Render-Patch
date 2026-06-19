@@ -20,13 +20,15 @@ public final class YesSteveModelElytraHelperMixin {
             LivingEntity entity,
             CallbackInfoReturnable<ItemStack> cir
     ) {
-        if (!cir.getReturnValue().isEmpty()) {
-            return;
-        }
-
         ItemStack equipmentElytra = ElytraEquipmentLookup.findElytra(entity);
         if (!equipmentElytra.isEmpty()) {
             cir.setReturnValue(equipmentElytra);
+            return;
+        }
+
+        ItemStack ysmElytra = cir.getReturnValue();
+        if (ElytraEquipmentLookup.isHiddenCuriosElytra(entity, ysmElytra)) {
+            cir.setReturnValue(ItemStack.EMPTY);
         }
     }
 }

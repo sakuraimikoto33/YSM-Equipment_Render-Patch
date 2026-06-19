@@ -1,19 +1,13 @@
 package net.okitsu.ysmequipmentrenderpatch.compat;
 
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.neoforged.neoforge.capabilities.EntityCapability;
-import net.neoforged.neoforge.items.IItemHandler;
 
 import java.lang.reflect.Method;
 
 public final class ElytraEquipmentLookup {
-    private static final EntityCapability<IItemHandler, Void> CURIOS_INVENTORY =
-            EntityCapability.createVoid(ResourceLocation.fromNamespaceAndPath("curios", "item_handler"), IItemHandler.class);
-
     private ElytraEquipmentLookup() {
     }
 
@@ -23,18 +17,11 @@ public final class ElytraEquipmentLookup {
             return chestStack;
         }
 
-        IItemHandler curiosInventory = entity.getCapability(CURIOS_INVENTORY);
-        if (curiosInventory == null) {
-            return ItemStack.EMPTY;
-        }
+        return VisibleEquipmentLookup.findFirstVisibleCurio(entity, stack -> shouldRenderElytra(stack, entity));
+    }
 
-        for (int slot = 0; slot < curiosInventory.getSlots(); slot++) {
-            ItemStack stack = curiosInventory.getStackInSlot(slot);
-            if (shouldRenderElytra(stack, entity)) {
-                return stack;
-            }
-        }
-        return ItemStack.EMPTY;
+    public static boolean isHiddenCuriosElytra(LivingEntity entity, ItemStack stack) {
+        return VisibleEquipmentLookup.hasHiddenMatchingCurio(entity, stack, hiddenStack -> shouldRenderElytra(hiddenStack, entity));
     }
 
     private static boolean shouldRenderElytra(ItemStack stack, LivingEntity entity) {

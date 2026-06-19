@@ -10,14 +10,10 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LanternBlock;
-import net.neoforged.neoforge.capabilities.EntityCapability;
-import net.neoforged.neoforge.items.IItemHandler;
 
 import java.util.List;
 
 public final class LanternEquipmentLookup {
-    private static final EntityCapability<IItemHandler, Void> CURIOS_INVENTORY =
-            EntityCapability.createVoid(ResourceLocation.fromNamespaceAndPath("curios", "item_handler"), IItemHandler.class);
     private static final TagKey<Item> CURIOS_LANTERN_TAG = itemTag("curios", "lantern");
     private static final TagKey<Item> CURIOS_BELT_TAG = itemTag("curios", "belt");
     private static final TagKey<Item> ACCESSORIFY_LANTERNS_TAG = itemTag("accessorify", "lanterns");
@@ -26,18 +22,8 @@ public final class LanternEquipmentLookup {
     }
 
     public static List<LanternEntry> findLanterns(LivingEntity entity) {
-        IItemHandler curiosInventory = entity.getCapability(CURIOS_INVENTORY);
-        if (curiosInventory == null) {
-            return List.of();
-        }
-
-        for (int slot = 0; slot < curiosInventory.getSlots(); slot++) {
-            ItemStack stack = curiosInventory.getStackInSlot(slot);
-            if (isSupportedLantern(stack) && isRenderableBlockLantern(stack)) {
-                return List.of(new LanternEntry(stack));
-            }
-        }
-        return List.of();
+        ItemStack stack = VisibleEquipmentLookup.findFirstVisibleCurio(entity, LanternEquipmentLookup::isVisibleLantern);
+        return stack.isEmpty() ? List.of() : List.of(new LanternEntry(stack));
     }
 
     public static boolean isSupportedLantern(ItemStack stack) {
@@ -66,6 +52,10 @@ public final class LanternEquipmentLookup {
 
     public static boolean shouldHang(Block block) {
         return block instanceof LanternBlock;
+    }
+
+    private static boolean isVisibleLantern(ItemStack stack) {
+        return isSupportedLantern(stack) && isRenderableBlockLantern(stack);
     }
 
     private static boolean isLanternBlock(ItemStack stack) {
