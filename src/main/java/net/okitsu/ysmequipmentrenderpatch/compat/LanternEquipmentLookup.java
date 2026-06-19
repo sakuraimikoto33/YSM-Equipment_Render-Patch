@@ -13,7 +13,6 @@ import net.minecraft.world.level.block.LanternBlock;
 import net.neoforged.neoforge.capabilities.EntityCapability;
 import net.neoforged.neoforge.items.IItemHandler;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public final class LanternEquipmentLookup {
@@ -27,19 +26,18 @@ public final class LanternEquipmentLookup {
     }
 
     public static List<LanternEntry> findLanterns(LivingEntity entity) {
-        List<LanternEntry> lanterns = new ArrayList<>();
         IItemHandler curiosInventory = entity.getCapability(CURIOS_INVENTORY);
         if (curiosInventory == null) {
-            return lanterns;
+            return List.of();
         }
 
         for (int slot = 0; slot < curiosInventory.getSlots(); slot++) {
             ItemStack stack = curiosInventory.getStackInSlot(slot);
-            if (isSupportedLantern(stack)) {
-                lanterns.add(new LanternEntry(stack));
+            if (isSupportedLantern(stack) && isRenderableBlockLantern(stack)) {
+                return List.of(new LanternEntry(stack));
             }
         }
-        return lanterns;
+        return List.of();
     }
 
     public static boolean isSupportedLantern(ItemStack stack) {

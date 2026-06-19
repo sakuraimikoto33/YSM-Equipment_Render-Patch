@@ -5,7 +5,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -31,7 +30,6 @@ public final class LanternYsmRenderer {
     private static final Map<UUID, Pendulum> PENDULUM_STATES = new ConcurrentHashMap<>();
     private static final Method GET_ENTITY = findMethod(CUSTOM_PLAYER_ENTITY_CLASS, "ooo00OoO00OOOO0oOooOo0Oo");
     private static final Method GET_CURRENT_MODEL = findMethod(CUSTOM_PLAYER_ENTITY_CLASS, "O00OOOo00Oo0OO0000oOo0oo");
-    private static final Method LEFT_WAIST_BONES = findMethod(ANIMATED_GEO_MODEL_CLASS, "O0oo0O0O0O0oO0oooOOo00o0");
     private static final Method RIGHT_WAIST_BONES = findMethod(ANIMATED_GEO_MODEL_CLASS, "oo0o0Oooo0OOO00OOo0OO000");
     private static final Method PREP_MATRIX_FOR_LOCATOR = findMethod(
             RENDER_UTILS_CLASS,
@@ -61,29 +59,21 @@ public final class LanternYsmRenderer {
             return;
         }
 
-        List<?> leftWaistBones = getBoneList(LEFT_WAIST_BONES, model);
-        List<?> rightWaistBones = getBoneList(RIGHT_WAIST_BONES, model);
-
-        for (int i = 0; i < lanterns.size(); i++) {
-            ItemStack stack = lanterns.get(i).stack();
-            if (!LanternEquipmentLookup.isRenderableBlockLantern(stack)) {
-                continue;
-            }
-
-            HumanoidArm side = i % 2 == 0 ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
-            List<?> preferredBones = side == HumanoidArm.RIGHT ? rightWaistBones : leftWaistBones;
-            List<?> fallbackBones = side == HumanoidArm.RIGHT ? leftWaistBones : rightWaistBones;
-            List<?> waistBones = !preferredBones.isEmpty() ? preferredBones : fallbackBones;
-            if (waistBones.isEmpty()) {
-                continue;
-            }
-
-            poseStack.pushPose();
-            if (applyWaistLocatorTransform(poseStack, waistBones)) {
-                renderLanternBlock(entity, stack, poseStack, bufferSource, packedLight, partialTick);
-            }
-            poseStack.popPose();
+        ItemStack stack = lanterns.get(0).stack();
+        if (!LanternEquipmentLookup.isRenderableBlockLantern(stack)) {
+            return;
         }
+
+        List<?> rightWaistBones = getBoneList(RIGHT_WAIST_BONES, model);
+        if (rightWaistBones.isEmpty()) {
+            return;
+        }
+
+        poseStack.pushPose();
+        if (applyWaistLocatorTransform(poseStack, rightWaistBones)) {
+            renderLanternBlock(entity, stack, poseStack, bufferSource, packedLight, partialTick);
+        }
+        poseStack.popPose();
     }
 
     private static LivingEntity getLivingEntity(Object customPlayerEntity) {
