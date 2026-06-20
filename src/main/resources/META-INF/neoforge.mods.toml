@@ -43,3 +43,10 @@ description='''${mod_description}'''
     versionRange="${draconic_evolution_version_range}"
     ordering="AFTER"
     side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="kaleidoscope_doll"
+    type="optional"
+    versionRange="${kaleidoscope_doll_version_range}"
+    ordering="AFTER"
+    side="CLIENT"

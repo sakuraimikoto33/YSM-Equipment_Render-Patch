@@ -133,12 +133,12 @@ final class YsmEquipmentTransformer implements ITransformer<ClassNode>, Opcodes 
         for (MethodNode method : classNode.methods) {
             if (method.name.equals(this.symbols.elytraRender.name)
                     && method.desc.equals(this.symbols.elytraRender.descriptor)) {
-                insertLanternRenderer(method);
+                insertEquipmentRenderers(method);
             }
         }
     }
 
-    private static void insertLanternRenderer(MethodNode method) {
+    private static void insertEquipmentRenderers(MethodNode method) {
         int poseStackLocal = argumentLocal(method, 0);
         int bufferSourceLocal = argumentLocal(method, 1);
         int packedLightLocal = argumentLocal(method, 2);
@@ -151,20 +151,33 @@ final class YsmEquipmentTransformer implements ITransformer<ClassNode>, Opcodes 
             }
 
             InsnList injected = new InsnList();
-            injected.add(new VarInsnNode(ALOAD, poseStackLocal));
-            injected.add(new VarInsnNode(ALOAD, bufferSourceLocal));
-            injected.add(new VarInsnNode(ILOAD, packedLightLocal));
-            injected.add(new VarInsnNode(ALOAD, customPlayerLocal));
-            injected.add(new VarInsnNode(FLOAD, partialTickLocal));
-            injected.add(new MethodInsnNode(
-                    INVOKESTATIC,
-                    SERVICE_BRIDGE_OWNER,
-                    "renderLantern",
-                    "(Ljava/lang/Object;Ljava/lang/Object;ILjava/lang/Object;F)V",
-                    false
-            ));
+            appendRendererCall(injected, "renderLantern", poseStackLocal, bufferSourceLocal, packedLightLocal, customPlayerLocal, partialTickLocal);
+            appendRendererCall(injected, "renderKaleidoscopeDolls", poseStackLocal, bufferSourceLocal, packedLightLocal, customPlayerLocal, partialTickLocal);
             method.instructions.insertBefore(instruction, injected);
         }
+    }
+
+    private static void appendRendererCall(
+            InsnList instructions,
+            String bridgeMethod,
+            int poseStackLocal,
+            int bufferSourceLocal,
+            int packedLightLocal,
+            int customPlayerLocal,
+            int partialTickLocal
+    ) {
+        instructions.add(new VarInsnNode(ALOAD, poseStackLocal));
+        instructions.add(new VarInsnNode(ALOAD, bufferSourceLocal));
+        instructions.add(new VarInsnNode(ILOAD, packedLightLocal));
+        instructions.add(new VarInsnNode(ALOAD, customPlayerLocal));
+        instructions.add(new VarInsnNode(FLOAD, partialTickLocal));
+        instructions.add(new MethodInsnNode(
+                INVOKESTATIC,
+                SERVICE_BRIDGE_OWNER,
+                bridgeMethod,
+                "(Ljava/lang/Object;Ljava/lang/Object;ILjava/lang/Object;F)V",
+                false
+        ));
     }
 
     private static int argumentLocal(MethodNode method, int argumentIndex) {

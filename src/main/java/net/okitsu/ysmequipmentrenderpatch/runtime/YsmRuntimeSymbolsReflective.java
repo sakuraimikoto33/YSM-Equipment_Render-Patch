@@ -32,7 +32,10 @@ public final class YsmRuntimeSymbolsReflective {
                 Reflector.findMethod(symbols.customPlayerGetEntity, classLoader),
                 Reflector.findMethod(symbols.customPlayerGetCurrentModel, classLoader),
                 Reflector.findMethod(symbols.animatedModelRightWaistBones, classLoader),
-                Reflector.findMethod(symbols.prepMatrixForLocator, classLoader)
+                Reflector.findMethod(symbols.prepMatrixForLocator, classLoader),
+                Reflector.findMethod(symbols.animatedModelHeadBones, classLoader),
+                Reflector.findMethod(symbols.animatedModelAllHeadBone, classLoader),
+                Reflector.findMethod(symbols.prepMatrixForBone, classLoader)
         );
         return methods.isComplete() ? methods : ResolvedMethods.EMPTY;
     }
@@ -41,15 +44,23 @@ public final class YsmRuntimeSymbolsReflective {
             Method getEntity,
             Method getCurrentModel,
             Method rightWaistBones,
-            Method prepMatrixForLocator
+            Method prepMatrixForLocator,
+            Method headBones,
+            Method allHeadBone,
+            Method prepMatrixForBone
     ) {
-        private static final ResolvedMethods EMPTY = new ResolvedMethods(null, null, null, null);
+        private static final ResolvedMethods EMPTY = new ResolvedMethods(null, null, null, null, null, null, null);
 
         public boolean isComplete() {
             return this.getEntity != null
                     && this.getCurrentModel != null
                     && this.rightWaistBones != null
                     && this.prepMatrixForLocator != null;
+        }
+
+        public boolean hasHeadDollSupport() {
+            return isComplete()
+                    && this.headBones != null;
         }
     }
 }

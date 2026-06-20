@@ -30,7 +30,9 @@ final class YsmSymbolAnalyzer implements Opcodes {
     private static final String MULTI_BUFFER_SOURCE_DESC = "Lnet/minecraft/client/renderer/MultiBufferSource;";
     private static final String INT_LIST_DESC = "Lit/unimi/dsi/fastutil/ints/IntList;";
     private static final String LIST_DESC = "Ljava/util/List;";
+    private static final String ALL_HEAD_BONE_NAME = "AllHead";
     private static final int RIGHT_WAIST_LOCATOR_INDEX = 6;
+    private static final int HEAD_LOCATOR_INDEX = 11;
 
     private YsmSymbolAnalyzer() {
     }
@@ -53,6 +55,11 @@ final class YsmSymbolAnalyzer implements Opcodes {
                 .orElseThrow(() -> new IllegalStateException("Could not find YSM right waist locator getter"));
         YsmRuntimeSymbols.MethodRef prepMatrix = findPrepMatrixForLocator(classes)
                 .orElseThrow(() -> new IllegalStateException("Could not find YSM locator matrix helper"));
+        YsmRuntimeSymbols.MethodRef headGetter = findHeadGetter(classes, animatedModelClass).orElse(null);
+        YsmRuntimeSymbols.MethodRef allHeadGetter = findAllHeadGetter(classes, animatedModelClass).orElse(null);
+        YsmRuntimeSymbols.MethodRef prepMatrixForBone = allHeadGetter == null
+                ? null
+                : findPrepMatrixForBone(classes, prepMatrix, allHeadGetter).orElse(null);
 
         return new YsmRuntimeSymbols(
                 ysmVersion,
@@ -62,7 +69,10 @@ final class YsmSymbolAnalyzer implements Opcodes {
                 getEntity,
                 getCurrentModel,
                 rightWaistGetter,
-                prepMatrix
+                prepMatrix,
+                headGetter,
+                allHeadGetter,
+                prepMatrixForBone
         );
     }
 
@@ -207,6 +217,21 @@ final class YsmSymbolAnalyzer implements Opcodes {
             Map<String, ClassNode> classes,
             String animatedModelClass
     ) {
+        return findLocatorGetter(classes, animatedModelClass, RIGHT_WAIST_LOCATOR_INDEX);
+    }
+
+    private static Optional<YsmRuntimeSymbols.MethodRef> findHeadGetter(
+            Map<String, ClassNode> classes,
+            String animatedModelClass
+    ) {
+        return findLocatorGetter(classes, animatedModelClass, HEAD_LOCATOR_INDEX);
+    }
+
+    private static Optional<YsmRuntimeSymbols.MethodRef> findLocatorGetter(
+            Map<String, ClassNode> classes,
+            String animatedModelClass,
+            int locatorIndex
+    ) {
         ClassNode animatedModel = classes.get(animatedModelClass);
         if (animatedModel == null) {
             return Optional.empty();
@@ -217,7 +242,7 @@ final class YsmSymbolAnalyzer implements Opcodes {
             return Optional.empty();
         }
 
-        String modelDataWaistField = findModelDataLocatorField(classes.get(modelDataClass), RIGHT_WAIST_LOCATOR_INDEX)
+        String modelDataWaistField = findModelDataLocatorField(classes.get(modelDataClass), locatorIndex)
                 .orElse(null);
         if (modelDataWaistField == null) {
             return Optional.empty();
@@ -229,7 +254,31 @@ final class YsmSymbolAnalyzer implements Opcodes {
             return Optional.empty();
         }
 
-        return findGetterForField(animatedModel, animatedWaistField)
+        return findGetterForListField(animatedModel, animatedWaistField)
+                .map(method -> methodRef(animatedModel, method));
+    }
+
+    private static Optional<YsmRuntimeSymbols.MethodRef> findAllHeadGetter(
+            Map<String, ClassNode> classes,
+            String animatedModelClass
+    ) {
+        ClassNode animatedModel = classes.get(animatedModelClass);
+        if (animatedModel == null) {
+            return Optional.empty();
+        }
+
+        String allHeadIndexField = findStaticIntFieldAssignedFromString(animatedModel, ALL_HEAD_BONE_NAME)
+                .orElse(null);
+        if (allHeadIndexField == null) {
+            return Optional.empty();
+        }
+
+        FieldRef allHeadBoneField = findAnimatedBoneField(animatedModel, allHeadIndexField).orElse(null);
+        if (allHeadBoneField == null) {
+            return Optional.empty();
+        }
+
+        return findGetterForField(animatedModel, allHeadBoneField.name(), allHeadBoneField.descriptor())
                 .map(method -> methodRef(animatedModel, method));
     }
 
@@ -306,9 +355,13 @@ final class YsmSymbolAnalyzer implements Opcodes {
         return Optional.empty();
     }
 
-    private static Optional<MethodNode> findGetterForField(ClassNode classNode, String fieldName) {
+    private static Optional<MethodNode> findGetterForListField(ClassNode classNode, String fieldName) {
+        return findGetterForField(classNode, fieldName, LIST_DESC);
+    }
+
+    private static Optional<MethodNode> findGetterForField(ClassNode classNode, String fieldName, String fieldDesc) {
         for (MethodNode method : classNode.methods) {
-            if (!method.desc.equals("()" + LIST_DESC)) {
+            if (!method.desc.equals("()" + fieldDesc)) {
                 continue;
             }
             for (AbstractInsnNode instruction : method.instructions) {
@@ -316,7 +369,7 @@ final class YsmSymbolAnalyzer implements Opcodes {
                         && fieldInsn.getOpcode() == GETFIELD
                         && fieldInsn.owner.equals(classNode.name)
                         && fieldInsn.name.equals(fieldName)
-                        && fieldInsn.desc.equals(LIST_DESC)) {
+                        && fieldInsn.desc.equals(fieldDesc)) {
                     return Optional.of(method);
                 }
             }
@@ -330,6 +383,114 @@ final class YsmSymbolAnalyzer implements Opcodes {
             for (MethodNode method : classNode.methods) {
                 if ((method.access & ACC_STATIC) != 0 && method.desc.equals(descriptor)) {
                     return Optional.of(methodRef(classNode, method));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<YsmRuntimeSymbols.MethodRef> findPrepMatrixForBone(
+            Map<String, ClassNode> classes,
+            YsmRuntimeSymbols.MethodRef prepMatrixForLocator,
+            YsmRuntimeSymbols.MethodRef allHeadGetter
+    ) {
+        String boneDesc = Type.getReturnType(allHeadGetter.descriptor).getDescriptor();
+        String descriptor = "(" + POSE_STACK_DESC + boneDesc + ")Z";
+        ClassNode preferredClass = classes.get(prepMatrixForLocator.owner);
+        Optional<YsmRuntimeSymbols.MethodRef> preferred = findPrepMatrixForBone(preferredClass, descriptor, boneDesc);
+        if (preferred.isPresent()) {
+            return preferred;
+        }
+
+        for (ClassNode classNode : classes.values()) {
+            Optional<YsmRuntimeSymbols.MethodRef> match = findPrepMatrixForBone(classNode, descriptor, boneDesc);
+            if (match.isPresent()) {
+                return match;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<YsmRuntimeSymbols.MethodRef> findPrepMatrixForBone(
+            ClassNode classNode,
+            String descriptor,
+            String boneDesc
+    ) {
+        if (classNode == null) {
+            return Optional.empty();
+        }
+
+        for (MethodNode method : classNode.methods) {
+            if ((method.access & ACC_STATIC) != 0
+                    && method.desc.equals(descriptor)
+                    && looksLikeFullBoneTransform(classNode, method, boneDesc)) {
+                return Optional.of(methodRef(classNode, method));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean looksLikeFullBoneTransform(ClassNode classNode, MethodNode method, String boneDesc) {
+        String helperDescriptor = "(" + POSE_STACK_DESC + boneDesc + ")V";
+        int helperCalls = 0;
+        for (AbstractInsnNode instruction : method.instructions) {
+            if (instruction instanceof MethodInsnNode methodInsn
+                    && methodInsn.owner.equals(classNode.name)
+                    && methodInsn.desc.equals(helperDescriptor)) {
+                helperCalls++;
+            }
+        }
+        return helperCalls >= 3;
+    }
+
+    private static Optional<String> findStaticIntFieldAssignedFromString(ClassNode classNode, String value) {
+        for (MethodNode method : classNode.methods) {
+            if (!method.name.equals("<clinit>")) {
+                continue;
+            }
+
+            AbstractInsnNode[] instructions = method.instructions.toArray();
+            for (int index = 0; index < instructions.length; index++) {
+                if (!(instructions[index] instanceof LdcInsnNode ldcInsn) || !value.equals(ldcInsn.cst)) {
+                    continue;
+                }
+
+                for (int next = index + 1; next < Math.min(instructions.length, index + 10); next++) {
+                    if (instructions[next] instanceof FieldInsnNode fieldInsn
+                            && fieldInsn.getOpcode() == PUTSTATIC
+                            && fieldInsn.owner.equals(classNode.name)
+                            && fieldInsn.desc.equals("I")) {
+                        return Optional.of(fieldInsn.name);
+                    }
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<FieldRef> findAnimatedBoneField(ClassNode animatedModel, String allHeadIndexField) {
+        for (MethodNode method : animatedModel.methods) {
+            if (!method.name.equals("<init>")) {
+                continue;
+            }
+
+            AbstractInsnNode[] instructions = method.instructions.toArray();
+            for (int index = 0; index < instructions.length; index++) {
+                if (!(instructions[index] instanceof FieldInsnNode putField)
+                        || putField.getOpcode() != PUTFIELD
+                        || !putField.owner.equals(animatedModel.name)
+                        || !putField.desc.startsWith("L" + YSM_PACKAGE)) {
+                    continue;
+                }
+
+                for (int previous = Math.max(0, index - 16); previous < index; previous++) {
+                    if (instructions[previous] instanceof FieldInsnNode getStatic
+                            && getStatic.getOpcode() == GETSTATIC
+                            && getStatic.owner.equals(animatedModel.name)
+                            && getStatic.name.equals(allHeadIndexField)
+                            && getStatic.desc.equals("I")) {
+                        return Optional.of(new FieldRef(putField.name, putField.desc));
+                    }
                 }
             }
         }
@@ -428,5 +589,8 @@ final class YsmSymbolAnalyzer implements Opcodes {
 
     private static YsmRuntimeSymbols.MethodRef methodRef(ClassNode classNode, MethodNode method) {
         return new YsmRuntimeSymbols.MethodRef(classNode.name, method.name, method.desc);
+    }
+
+    private record FieldRef(String name, String descriptor) {
     }
 }

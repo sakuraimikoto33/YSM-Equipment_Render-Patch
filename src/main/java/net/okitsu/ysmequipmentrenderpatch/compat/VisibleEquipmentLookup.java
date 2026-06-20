@@ -7,6 +7,7 @@ import net.neoforged.neoforge.capabilities.EntityCapability;
 import net.neoforged.neoforge.items.IItemHandler;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,6 +31,17 @@ final class VisibleEquipmentLookup {
         return !expectedStack.isEmpty()
                 && CuriosVisibilityAccess.isAvailable()
                 && CuriosVisibilityAccess.hasHiddenMatchingItem(entity, expectedStack, itemFilter);
+    }
+
+    static List<ItemStack> findVisibleCuriosInSlot(
+            LivingEntity entity,
+            String slotIdentifier,
+            Predicate<ItemStack> itemFilter
+    ) {
+        if (!CuriosVisibilityAccess.isSlotAccessAvailable()) {
+            return List.of();
+        }
+        return CuriosVisibilityAccess.findVisibleItemsInSlot(entity, slotIdentifier, itemFilter);
     }
 
     private static ItemStack findFirstCapabilityItem(LivingEntity entity, Predicate<ItemStack> itemFilter) {
@@ -65,6 +77,14 @@ final class VisibleEquipmentLookup {
                 "top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler",
                 "getCosmeticStacks"
         );
+        private static final Method GET_IDENTIFIER = findMethod(
+                "top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler",
+                "getIdentifier"
+        );
+        private static final Method IS_VISIBLE = findMethod(
+                "top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler",
+                "isVisible"
+        );
         private static final Method GET_RENDERS = findMethod(
                 "top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler",
                 "getRenders"
@@ -90,6 +110,12 @@ final class VisibleEquipmentLookup {
                     && GET_RENDERS != null
                     && GET_STACK_IN_SLOT != null
                     && GET_SLOTS != null;
+        }
+
+        private static boolean isSlotAccessAvailable() {
+            return isAvailable()
+                    && GET_IDENTIFIER != null
+                    && IS_VISIBLE != null;
         }
 
         private static ItemStack findFirstVisibleItem(LivingEntity entity, Predicate<ItemStack> itemFilter) {
@@ -129,6 +155,56 @@ final class VisibleEquipmentLookup {
                 }
             }
             return ItemStack.EMPTY;
+        }
+
+        private static List<ItemStack> findVisibleItemsInSlot(
+                LivingEntity entity,
+                String slotIdentifier,
+                Predicate<ItemStack> itemFilter
+        ) {
+            Object optional = invoke(GET_CURIOS_INVENTORY, null, entity);
+            Object handler = optional instanceof Optional<?> curiosOptional ? curiosOptional.orElse(null) : null;
+            Object curios = invoke(GET_CURIOS, handler);
+            if (!(curios instanceof Map<?, ?> curiosMap)) {
+                return List.of();
+            }
+
+            List<ItemStack> matches = new ArrayList<>();
+            for (Object stacksHandler : curiosMap.values()) {
+                findVisibleItemsInSlot(stacksHandler, slotIdentifier, itemFilter, matches);
+            }
+            return List.copyOf(matches);
+        }
+
+        private static void findVisibleItemsInSlot(
+                Object stacksHandler,
+                String slotIdentifier,
+                Predicate<ItemStack> itemFilter,
+                List<ItemStack> matches
+        ) {
+            if (!slotIdentifier.equals(invoke(GET_IDENTIFIER, stacksHandler))
+                    || !Boolean.TRUE.equals(invoke(IS_VISIBLE, stacksHandler))) {
+                return;
+            }
+
+            Object stacks = invoke(GET_STACKS, stacksHandler);
+            Object cosmeticStacks = invoke(GET_COSMETIC_STACKS, stacksHandler);
+            Object renderStates = invoke(GET_RENDERS, stacksHandler);
+            Object slots = invoke(GET_SLOTS, stacks);
+            if (!(slots instanceof Number slotCount)) {
+                return;
+            }
+
+            for (int slot = 0; slot < slotCount.intValue(); slot++) {
+                ItemStack stack = getStack(cosmeticStacks, slot);
+                if (stack.isEmpty() && isRenderable(renderStates, slot)) {
+                    stack = getStack(stacks, slot);
+                }
+
+                if (itemFilter.test(stack)) {
+                    matches.add(stack);
+                }
+            }
         }
 
         private static boolean hasHiddenMatchingItem(

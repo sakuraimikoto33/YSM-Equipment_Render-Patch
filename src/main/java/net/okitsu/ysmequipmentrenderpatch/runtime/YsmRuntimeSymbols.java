@@ -14,6 +14,9 @@ public final class YsmRuntimeSymbols {
     public MethodRef customPlayerGetCurrentModel;
     public MethodRef animatedModelRightWaistBones;
     public MethodRef prepMatrixForLocator;
+    public MethodRef animatedModelHeadBones;
+    public MethodRef animatedModelAllHeadBone;
+    public MethodRef prepMatrixForBone;
 
     public YsmRuntimeSymbols() {
     }
@@ -26,7 +29,10 @@ public final class YsmRuntimeSymbols {
             MethodRef customPlayerGetEntity,
             MethodRef customPlayerGetCurrentModel,
             MethodRef animatedModelRightWaistBones,
-            MethodRef prepMatrixForLocator
+            MethodRef prepMatrixForLocator,
+            MethodRef animatedModelHeadBones,
+            MethodRef animatedModelAllHeadBone,
+            MethodRef prepMatrixForBone
     ) {
         this.schemaVersion = SCHEMA_VERSION;
         this.analyzerVersion = ANALYZER_VERSION;
@@ -38,6 +44,9 @@ public final class YsmRuntimeSymbols {
         this.customPlayerGetCurrentModel = customPlayerGetCurrentModel;
         this.animatedModelRightWaistBones = animatedModelRightWaistBones;
         this.prepMatrixForLocator = prepMatrixForLocator;
+        this.animatedModelHeadBones = animatedModelHeadBones;
+        this.animatedModelAllHeadBone = animatedModelAllHeadBone;
+        this.prepMatrixForBone = prepMatrixForBone;
     }
 
     public boolean matches(String expectedYsmVersion, String expectedJarSha256) {
@@ -55,6 +64,10 @@ public final class YsmRuntimeSymbols {
                 && isComplete(this.customPlayerGetCurrentModel)
                 && isComplete(this.animatedModelRightWaistBones)
                 && isComplete(this.prepMatrixForLocator);
+    }
+
+    public boolean hasHeadDollSupportSymbols() {
+        return isComplete(this.animatedModelHeadBones);
     }
 
     private static boolean isComplete(MethodRef methodRef) {

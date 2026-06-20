@@ -30,6 +30,19 @@ public final class YsmServiceBridge {
         }
     }
 
+    public static void renderKaleidoscopeDolls(
+            Object poseStack,
+            Object bufferSource,
+            int packedLight,
+            Object customPlayerEntity,
+            float partialTick
+    ) {
+        GameDispatcher dispatcher = dispatcher(customPlayerEntity);
+        if (dispatcher != null) {
+            dispatcher.renderKaleidoscopeDolls(poseStack, bufferSource, packedLight, customPlayerEntity, partialTick);
+        }
+    }
+
     private static GameDispatcher dispatcher(Object context) {
         if (context == null) {
             return null;
@@ -48,6 +61,7 @@ public final class YsmServiceBridge {
         private final Method findElytra;
         private final Method isHiddenCuriosElytra;
         private final Method renderLantern;
+        private final Method renderKaleidoscopeDolls;
 
         private GameDispatcher(ClassLoader gameClassLoader) {
             this.gameClassLoader = gameClassLoader;
@@ -72,6 +86,15 @@ public final class YsmServiceBridge {
                     Object.class,
                     float.class
             );
+            this.renderKaleidoscopeDolls = findMethod(
+                    "net.okitsu.ysmequipmentrenderpatch.client.KaleidoscopeDollYsmRenderer",
+                    "render",
+                    "com.mojang.blaze3d.vertex.PoseStack",
+                    "net.minecraft.client.renderer.MultiBufferSource",
+                    int.class,
+                    Object.class,
+                    float.class
+            );
         }
 
         private Object findElytra(Object entity) {
@@ -84,6 +107,16 @@ public final class YsmServiceBridge {
 
         private void renderLantern(Object poseStack, Object bufferSource, int packedLight, Object customPlayerEntity, float partialTick) {
             invoke(this.renderLantern, poseStack, bufferSource, packedLight, customPlayerEntity, partialTick);
+        }
+
+        private void renderKaleidoscopeDolls(
+                Object poseStack,
+                Object bufferSource,
+                int packedLight,
+                Object customPlayerEntity,
+                float partialTick
+        ) {
+            invoke(this.renderKaleidoscopeDolls, poseStack, bufferSource, packedLight, customPlayerEntity, partialTick);
         }
 
         private Method findMethod(String ownerName, String methodName, Object... parameterTypeNames) {

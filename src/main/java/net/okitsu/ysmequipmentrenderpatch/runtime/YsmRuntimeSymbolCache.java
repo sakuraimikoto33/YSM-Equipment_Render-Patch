@@ -15,7 +15,7 @@ public final class YsmRuntimeSymbolCache {
     private static final String CACHE_DIRECTORY = YsmEquipmentRenderPatch.MOD_ID;
     private static final String CACHE_FILE = "ysm-symbols-cache.json";
     private static final String CACHE_WARNING =
-            "This file is generated automatically by YSM Equipment Render Patch. Do not edit it manually.";
+            "This file is generated automatically by YSM Equipment Render Patch. Do not edit it manually; changes may be overwritten.";
 
     private YsmRuntimeSymbolCache() {
     }
@@ -69,7 +69,10 @@ public final class YsmRuntimeSymbolCache {
         appendMethod(builder, "customPlayerGetEntity", symbols.customPlayerGetEntity).append(",\n");
         appendMethod(builder, "customPlayerGetCurrentModel", symbols.customPlayerGetCurrentModel).append(",\n");
         appendMethod(builder, "animatedModelRightWaistBones", symbols.animatedModelRightWaistBones).append(",\n");
-        appendMethod(builder, "prepMatrixForLocator", symbols.prepMatrixForLocator).append('\n');
+        appendMethod(builder, "prepMatrixForLocator", symbols.prepMatrixForLocator).append(",\n");
+        appendOptionalMethod(builder, "animatedModelHeadBones", symbols.animatedModelHeadBones).append(",\n");
+        appendOptionalMethod(builder, "animatedModelAllHeadBone", symbols.animatedModelAllHeadBone).append(",\n");
+        appendOptionalMethod(builder, "prepMatrixForBone", symbols.prepMatrixForBone).append('\n');
         builder.append("}\n");
         return builder.toString();
     }
@@ -90,6 +93,17 @@ public final class YsmRuntimeSymbolCache {
         return builder.append("  }");
     }
 
+    private static StringBuilder appendOptionalMethod(
+            StringBuilder builder,
+            String name,
+            YsmRuntimeSymbols.MethodRef methodRef
+    ) {
+        if (methodRef == null) {
+            return builder.append("  \"").append(name).append("\": null");
+        }
+        return appendMethod(builder, name, methodRef);
+    }
+
     private static YsmRuntimeSymbols parse(String json) {
         YsmRuntimeSymbols symbols = new YsmRuntimeSymbols();
         symbols.schemaVersion = readInt(json, "schemaVersion");
@@ -102,6 +116,9 @@ public final class YsmRuntimeSymbolCache {
         symbols.customPlayerGetCurrentModel = readMethod(json, "customPlayerGetCurrentModel");
         symbols.animatedModelRightWaistBones = readMethod(json, "animatedModelRightWaistBones");
         symbols.prepMatrixForLocator = readMethod(json, "prepMatrixForLocator");
+        symbols.animatedModelHeadBones = readOptionalMethod(json, "animatedModelHeadBones");
+        symbols.animatedModelAllHeadBone = readOptionalMethod(json, "animatedModelAllHeadBone");
+        symbols.prepMatrixForBone = readOptionalMethod(json, "prepMatrixForBone");
         return symbols;
     }
 
@@ -125,6 +142,24 @@ public final class YsmRuntimeSymbolCache {
                 readString(body, "name"),
                 readString(body, "descriptor")
         );
+    }
+
+    private static YsmRuntimeSymbols.MethodRef readOptionalMethod(String json, String field) {
+        int fieldStart = json.indexOf('"' + field + '"');
+        if (fieldStart < 0) {
+            return null;
+        }
+
+        int colon = json.indexOf(':', fieldStart);
+        if (colon < 0) {
+            throw new IllegalArgumentException("Missing field separator: " + field);
+        }
+
+        int valueStart = skipWhitespace(json, colon + 1);
+        if (json.startsWith("null", valueStart)) {
+            return null;
+        }
+        return readMethod(json, field);
     }
 
     private static String readRawValue(String json, String field) {
