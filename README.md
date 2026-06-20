@@ -8,9 +8,9 @@
 
 ### Overview
 
-YSM Equipment Render Patch is a small client-side compatibility patch that lets supported equipment appear correctly when using Yes Steve Model.
+YSM Equipment Render Patch is a patch mod that lets some equipment appear correctly when using Yes Steve Model.
 
-It currently supports rendering chest equipment with Elytra functionality, including Draconic Evolution modular armor when its Elytra module is enabled. When Curios is installed, it also supports Elytra and Lantern items equipped in Curios slots.
+It currently supports chest plates with Elytra functionality, the flight module when Draconic Evolution is installed, and Elytra and Lantern items equipped in Curios slots when Curios is installed.
 
 ### Requirements
 
@@ -18,27 +18,26 @@ It currently supports rendering chest equipment with Elytra functionality, inclu
 | --- | --- |
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.228+ |
-| Yes Steve Model | 2.6.5-neoforge+mc1.21.1 |
+| Yes Steve Model | 2.6.0-neoforge+mc1.21.1+ |
 | Curios | 9.5.1+1.21.1+ — optional, for Curios slot equipment |
-| Draconic Evolution | 3.1.4.632+ — optional, for modular armor Elytra settings |
+| Draconic Evolution | 3.1.4.632+ — optional, for flight module Elytra display |
 
 ### Features
 
-- Displays chest equipment with Elytra functionality on the active YSM model.
-- Follows the Draconic Evolution modular armor Elytra setting when Draconic Evolution is installed.
-- Displays Elytra and Lantern items equipped through Curios on the active YSM model when Curios is installed.
-- Requires another mod to equip Elytra or Lantern items in Curios slots; this mod only patches rendering.
-- Applies simple swing physics to rendered lanterns.
-- Works as a lightweight client-side render patch without adding new gameplay mechanics.
+- Displays Elytra while using a chest plate with Elytra functionality.
+- Follows the Draconic Evolution flight module Elytra setting when Draconic Evolution is installed.
+- Displays Elytra and Lantern items equipped in Curios slots.
+- Requires another mod to equip Elytra or Lantern items in Curios slots; this mod only implements rendering.
+- Applies swing physics to rendered lanterns.
 
 ### Installation
 
-Download `ysm-equipment-render-patch-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model is installed. Install Curios and a compatible equipment-slot mod only when using Curios slot Elytra or Lantern items. Install Draconic Evolution only when using Draconic Evolution modular armor.
+Download `ysm-equipment-render-patch-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model is installed.
 
 ### Building
 
 1. Install JDK 21.
-2. Clone or download this repository.
+2. Clone this repository.
 3. Run the build command:
 
 ```bash
@@ -56,9 +55,9 @@ The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modri
 
 ### 概要
 
-YSM Equipment Render Patch は、Yes Steve Model 使用時に対応装備を正しく表示するための、小さなクライアント側互換パッチです。
+YSM Equipment Render Patch は、Yes Steve Model 使用時に一部装備を正しく表示するためのパッチmodです。
 
-現在は、エリトラ機能を持つチェスト装備の描画に対応しています。Draconic Evolution 導入時は、エリトラモジュールが有効なモジュラーアーマーにも対応します。Curios 導入時は、Curios スロットに装備したエリトラとランタンの描画にも対応します。
+現在は、エリトラ機能を持つチェストプレート、Draconic Evolution 導入時は、フライトモジュール、Curios 導入時は、Curios スロットに装備したエリトラとランタンの描画に対応します。
 
 ### 要件
 
@@ -66,27 +65,26 @@ YSM Equipment Render Patch は、Yes Steve Model 使用時に対応装備を正�
 | --- | --- |
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.228+ |
-| Yes Steve Model | 2.6.5-neoforge+mc1.21.1 |
+| Yes Steve Model | 2.6.0-neoforge+mc1.21.1+ |
 | Curios | 9.5.1+1.21.1+ — 任意、Curios スロット装備用 |
-| Draconic Evolution | 3.1.4.632+ — 任意、モジュラーアーマーのエリトラ表示用 |
+| Draconic Evolution | 3.1.4.632+ — 任意、フライトモジュールのエリトラ表示用 |
 
 ### 特徴
 
-- エリトラ機能を持つチェスト装備を使用中の YSM モデル上に表示します。
-- Draconic Evolution 導入時、モジュラーアーマーのエリトラ設定に従って表示します。
-- Curios 導入時、Curios に装備したエリトラとランタンを使用中の YSM モデル上に表示します。
-- エリトラやランタンを Curios スロットに装備するには別の mod が必要です。この mod は描画のみを補正します。
-- 表示されたランタンに簡易的な揺れを適用します。
-- 新しいゲーム要素を追加せず、描画だけを補正する軽量なクライアント側パッチです。
+- エリトラ機能を持つチェストプレートを使用中にエリトラを表示します。
+- Draconic Evolution 導入時、フライトモジュールのエリトラ設定に従って表示します。
+- Curios 導入時、Curios スロットに装備したエリトラとランタンを表示します。
+- エリトラやランタンを Curios スロットに装備するには別の mod が必要です。この mod は描画のみを実装します。
+- 表示されたランタンに揺れを実装します。
 
 ### インストール方法
 
-`ysm-equipment-render-patch-<version>.jar`をダウンロードし、クライアント側の`mods/`フォルダに入れてください。Yes Steve Model がインストールされていることを確認してください。Curios スロットのエリトラやランタンを使用する場合のみ、Curios と対応する装備スロット追加 mod も導入してください。Draconic Evolution のモジュラーアーマーを使用する場合のみ、Draconic Evolution も導入してください。
+`ysm-equipment-render-patch-<version>.jar`をダウンロードし、クライアント側の`mods/`フォルダに入れてください。Yes Steve Model がインストールされていることを確認してください。
 
 ### ビルド方法
 
 1. JDK 21 を導入します。
-2. このリポジトリを clone またはダウンロードします。
+2. このリポジトリをクローンします。
 3. 以下のコマンドを実行します。
 
 ```bash
