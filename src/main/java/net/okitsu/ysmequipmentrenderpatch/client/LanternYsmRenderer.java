@@ -12,9 +12,10 @@ import net.minecraft.world.level.block.LanternBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.okitsu.ysmequipmentrenderpatch.compat.LanternEquipmentLookup;
+import net.okitsu.ysmequipmentrenderpatch.runtime.Reflector;
+import net.okitsu.ysmequipmentrenderpatch.runtime.YsmRuntimeSymbolsReflective;
 import org.joml.Quaternionf;
 
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -22,21 +23,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class LanternYsmRenderer {
-    private static final String CUSTOM_PLAYER_ENTITY_CLASS = "com.elfmcys.yesstevemodel.OOoOoO0o0o0o000OO0o0ooo0";
-    private static final String ANIMATED_GEO_MODEL_CLASS = "com.elfmcys.yesstevemodel.o0ooO0ooO00oo0o00Oo00000";
-    private static final String RENDER_UTILS_CLASS = "com.elfmcys.yesstevemodel.oOOOOOOO0ooOo0OoOOO0ooOO";
-
     private static final double LANTERN_CHAIN_TIP = 1.0D;
     private static final Map<UUID, Pendulum> PENDULUM_STATES = new ConcurrentHashMap<>();
-    private static final Method GET_ENTITY = findMethod(CUSTOM_PLAYER_ENTITY_CLASS, "ooo00OoO00OOOO0oOooOo0Oo");
-    private static final Method GET_CURRENT_MODEL = findMethod(CUSTOM_PLAYER_ENTITY_CLASS, "O00OOOo00Oo0OO0000oOo0oo");
-    private static final Method RIGHT_WAIST_BONES = findMethod(ANIMATED_GEO_MODEL_CLASS, "oo0o0Oooo0OOO00OOo0OO000");
-    private static final Method PREP_MATRIX_FOR_LOCATOR = findMethod(
-            RENDER_UTILS_CLASS,
-            "oOo0OO0O0o000OO0O000oo0o",
-            PoseStack.class,
-            List.class
-    );
 
     private LanternYsmRenderer() {
     }
@@ -48,8 +36,13 @@ public final class LanternYsmRenderer {
             Object customPlayerEntity,
             float partialTick
     ) {
-        LivingEntity entity = getLivingEntity(customPlayerEntity);
-        Object model = getCurrentModel(customPlayerEntity);
+        YsmRuntimeSymbolsReflective.ResolvedMethods methods = YsmRuntimeSymbolsReflective.methods();
+        if (!methods.isComplete()) {
+            return;
+        }
+
+        LivingEntity entity = getLivingEntity(methods, customPlayerEntity);
+        Object model = getCurrentModel(methods, customPlayerEntity);
         if (entity == null || model == null) {
             return;
         }
@@ -64,38 +57,48 @@ public final class LanternYsmRenderer {
             return;
         }
 
-        List<?> rightWaistBones = getBoneList(RIGHT_WAIST_BONES, model);
+        List<?> rightWaistBones = getBoneList(methods, model);
         if (rightWaistBones.isEmpty()) {
             return;
         }
 
         poseStack.pushPose();
-        if (applyWaistLocatorTransform(poseStack, rightWaistBones)) {
+        if (applyWaistLocatorTransform(methods, poseStack, rightWaistBones)) {
             renderLanternBlock(entity, stack, poseStack, bufferSource, packedLight, partialTick);
         }
         poseStack.popPose();
     }
 
-    private static LivingEntity getLivingEntity(Object customPlayerEntity) {
-        Object entity = invoke(GET_ENTITY, customPlayerEntity);
+    private static LivingEntity getLivingEntity(
+            YsmRuntimeSymbolsReflective.ResolvedMethods methods,
+            Object customPlayerEntity
+    ) {
+        Object entity = Reflector.invoke(methods.getEntity(), customPlayerEntity);
         return entity instanceof LivingEntity livingEntity ? livingEntity : null;
     }
 
-    private static Object getCurrentModel(Object customPlayerEntity) {
-        return invoke(GET_CURRENT_MODEL, customPlayerEntity);
+    private static Object getCurrentModel(
+            YsmRuntimeSymbolsReflective.ResolvedMethods methods,
+            Object customPlayerEntity
+    ) {
+        return Reflector.invoke(methods.getCurrentModel(), customPlayerEntity);
     }
 
-    private static List<?> getBoneList(Method method, Object model) {
-        Object bones = invoke(method, model);
+    private static List<?> getBoneList(YsmRuntimeSymbolsReflective.ResolvedMethods methods, Object model) {
+        Object bones = Reflector.invoke(methods.rightWaistBones(), model);
         return bones instanceof List<?> list ? list : Collections.emptyList();
     }
 
-    private static boolean applyWaistLocatorTransform(PoseStack poseStack, List<?> waistBones) {
-        if (waistBones.isEmpty() || PREP_MATRIX_FOR_LOCATOR == null) {
+    private static boolean applyWaistLocatorTransform(
+            YsmRuntimeSymbolsReflective.ResolvedMethods methods,
+            PoseStack poseStack,
+            List<?> waistBones
+    ) {
+        if (waistBones.isEmpty()) {
             return false;
         }
 
-        return invoke(PREP_MATRIX_FOR_LOCATOR, null, poseStack, waistBones) instanceof Boolean;
+        return Reflector.invoke(methods.prepMatrixForLocator(), null, poseStack, waistBones) instanceof Boolean;
     }
 
     private static void renderLanternBlock(
@@ -132,27 +135,6 @@ public final class LanternYsmRenderer {
 
     private static Vec3 getSwingPivotPosition(LivingEntity entity, float partialTick) {
         return entity.getPosition(partialTick).add(0.0D, entity.getBbHeight() * 0.5D, 0.0D);
-    }
-
-    private static Method findMethod(String className, String methodName, Class<?>... parameterTypes) {
-        try {
-            Method method = Class.forName(className).getMethod(methodName, parameterTypes);
-            method.setAccessible(true);
-            return method;
-        } catch (ReflectiveOperationException exception) {
-            return null;
-        }
-    }
-
-    private static Object invoke(Method method, Object target, Object... arguments) {
-        if (method == null) {
-            return null;
-        }
-        try {
-            return method.invoke(target, arguments);
-        } catch (ReflectiveOperationException exception) {
-            return null;
-        }
     }
 
     private static final class Pendulum {
