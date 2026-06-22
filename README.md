@@ -8,9 +8,9 @@
 
 ### Overview
 
-YSM Equipment Render Patch is a patch mod that lets some equipment appear correctly when using Yes Steve Model.
+**YSM Equipment Render Patch** is a patch mod that lets some equipment appear correctly when using Yes Steve Model.
 
-It currently supports chest plates with Elytra functionality, the flight module when Draconic Evolution is installed, Elytra and Lantern items equipped in Curios slots, and Kaleidoscope Doll items equipped in Curios head slots.
+It currently supports chest plates with Elytra functionality, the flight module when Draconic Evolution is installed, Lantern items equipped in Curios slots, and Kaleidoscope Doll items equipped in Curios head slots.
 
 ### Requirements
 
@@ -27,10 +27,11 @@ It currently supports chest plates with Elytra functionality, the flight module 
 
 - Displays Elytra while using a chest plate with Elytra functionality.
 - Follows the Draconic Evolution flight module Elytra setting when Draconic Evolution is installed.
-- Displays Elytra and Lantern items equipped in Curios slots.
+- Displays Lantern items equipped in Curios slots.
 - Displays Kaleidoscope Doll items equipped in Curios head slots when Kaleidoscope Doll and Curios are installed.
-- Curios slot equipment availability depends on the corresponding mod; this mod only implements rendering.
+- Items equipped in Curios slots can be hidden according to the Curios slot display settings.
 - Applies swing physics to rendered lanterns.
+- Curios slot equipment availability depends on the corresponding mod; this mod only implements rendering.
 
 ### Installation
 
@@ -57,9 +58,9 @@ The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modri
 
 ### 概要
 
-YSM Equipment Render Patch は、Yes Steve Model 使用時に一部装備を正しく表示するためのパッチmodです。
+**YSM Equipment Render Patch** は、Yes Steve Model 使用時に一部装備を正しく表示するためのパッチmodです。
 
-現在は、エリトラ機能を持つチェストプレート、Draconic Evolution 導入時はフライトモジュール、Curios 導入時は Curios スロットに装備したエリトラとランタン、Kaleidoscope Doll と Curios 導入時は Curios の head スロットに装備した Kaleidoscope Doll の描画に対応します。
+現在は、エリトラ機能を持つチェストプレート、Draconic Evolution 導入時はフライトモジュール、Curios 導入時は Curios スロットに装備したランタン、Kaleidoscope Doll と Curios 導入時は Curios の head スロットに装備した Kaleidoscope Doll の描画に対応します。
 
 ### 要件
 
@@ -76,10 +77,11 @@ YSM Equipment Render Patch は、Yes Steve Model 使用時に一部装備を正�
 
 - エリトラ機能を持つチェストプレートを使用中にエリトラを表示します。
 - Draconic Evolution 導入時、フライトモジュールのエリトラ設定に従って表示します。
-- Curios 導入時、Curios スロットに装備したエリトラとランタンを表示します。
+- Curios 導入時、Curios スロットに装備したランタンを表示します。
 - Kaleidoscope Doll と Curios 導入時、Curios の head スロットに装備した Kaleidoscope Doll を表示します。
-- Curios スロットに装備可能にする仕様は各対応 mod 側に依存します。この mod は描画のみを実装します。
+- Curios スロットに装備するアイテムは Curios スロットの表示設定に従い非表示に出来ます。
 - 表示されたランタンに揺れを実装します。
+- Curios スロットに装備可能にする仕様は各対応 mod 側に依存します。この mod は描画のみを実装します。
 
 ### インストール方法
 
