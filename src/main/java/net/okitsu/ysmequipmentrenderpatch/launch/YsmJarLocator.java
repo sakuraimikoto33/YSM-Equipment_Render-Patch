@@ -10,14 +10,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 final class YsmJarLocator {
     private static final String MODS_TOML = "META-INF/neoforge.mods.toml";
     private static final String YSM_MOD_ID = "yes_steve_model";
-    private static final Pattern VERSION_PATTERN = Pattern.compile("version\\s*=\\s*\"([^\"]+)\"");
+    private static final Pattern STRING_ASSIGNMENT_PATTERN =
+            Pattern.compile("^([A-Za-z0-9_.-]+)\\s*=\\s*([\"'])(.*?)\\2\\s*$");
 
     private YsmJarLocator() {
     }
@@ -32,10 +32,7 @@ final class YsmJarLocator {
     }
 
     static Optional<String> readYsmVersion(Path jarPath) {
-        return readModsToml(jarPath).flatMap(toml -> {
-            Matcher matcher = VERSION_PATTERN.matcher(toml);
-            return matcher.find() ? Optional.of(matcher.group(1)) : Optional.empty();
-        });
+        return readYsmModInfo(jarPath).flatMap(ModInfo::version);
     }
 
     private static Set<Path> candidates(Path gameDirectory) {
@@ -72,9 +69,118 @@ final class YsmJarLocator {
     }
 
     private static boolean isYsmJar(Path jarPath) {
-        return readModsToml(jarPath)
-                .map(toml -> toml.contains("modId=\"" + YSM_MOD_ID + "\""))
-                .orElse(false);
+        return readYsmModInfo(jarPath).isPresent();
+    }
+
+    private static Optional<ModInfo> readYsmModInfo(Path jarPath) {
+        return readModsToml(jarPath).flatMap(toml -> findModInfo(toml, YSM_MOD_ID));
+    }
+
+    private static Optional<ModInfo> findModInfo(String toml, String targetModId) {
+        boolean inModsBlock = false;
+        String modId = null;
+        String version = null;
+
+        for (String rawLine : toml.split("\\R")) {
+            String line = stripComment(rawLine).trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+
+            Optional<String> arrayTable = readArrayTableName(line);
+            if (arrayTable.isPresent()) {
+                Optional<ModInfo> current = finishModBlock(inModsBlock, modId, version, targetModId);
+                if (current.isPresent()) {
+                    return current;
+                }
+
+                inModsBlock = "mods".equals(arrayTable.get());
+                modId = null;
+                version = null;
+                continue;
+            }
+
+            Optional<String> table = readTableName(line);
+            if (table.isPresent()) {
+                Optional<ModInfo> current = finishModBlock(inModsBlock, modId, version, targetModId);
+                if (current.isPresent()) {
+                    return current;
+                }
+
+                inModsBlock = false;
+                modId = null;
+                version = null;
+                continue;
+            }
+
+            if (!inModsBlock) {
+                continue;
+            }
+
+            java.util.regex.Matcher matcher = STRING_ASSIGNMENT_PATTERN.matcher(line);
+            if (!matcher.matches()) {
+                continue;
+            }
+
+            String key = matcher.group(1);
+            String value = matcher.group(3);
+            if ("modId".equals(key)) {
+                modId = value;
+            } else if ("version".equals(key)) {
+                version = value;
+            }
+        }
+
+        return finishModBlock(inModsBlock, modId, version, targetModId);
+    }
+
+    private static Optional<ModInfo> finishModBlock(
+            boolean inModsBlock,
+            String modId,
+            String version,
+            String targetModId
+    ) {
+        if (inModsBlock && targetModId.equals(modId)) {
+            return Optional.of(new ModInfo(modId, Optional.ofNullable(version)));
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> readArrayTableName(String line) {
+        if (line.startsWith("[[") && line.endsWith("]]")) {
+            return Optional.of(line.substring(2, line.length() - 2).trim());
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> readTableName(String line) {
+        if (line.startsWith("[") && line.endsWith("]") && !line.startsWith("[[")) {
+            return Optional.of(line.substring(1, line.length() - 1).trim());
+        }
+        return Optional.empty();
+    }
+
+    private static String stripComment(String line) {
+        char quote = 0;
+        boolean escaped = false;
+        for (int index = 0; index < line.length(); index++) {
+            char character = line.charAt(index);
+            if (quote != 0) {
+                if (quote == '"' && character == '\\' && !escaped) {
+                    escaped = true;
+                    continue;
+                }
+                if (character == quote && !escaped) {
+                    quote = 0;
+                }
+                escaped = false;
+            } else if (character == '"' || character == '\'') {
+                quote = character;
+            } else if (character == '#') {
+                return line.substring(0, index);
+            }
+        }
+        return line;
     }
 
     private static Optional<String> readModsToml(Path jarPath) {
@@ -89,5 +195,8 @@ final class YsmJarLocator {
         } catch (IOException | RuntimeException exception) {
             return Optional.empty();
         }
+    }
+
+    private record ModInfo(String modId, Optional<String> version) {
     }
 }

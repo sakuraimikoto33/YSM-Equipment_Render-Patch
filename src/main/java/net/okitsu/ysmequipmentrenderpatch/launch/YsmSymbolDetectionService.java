@@ -55,6 +55,7 @@ public final class YsmSymbolDetectionService implements ITransformationService {
 
         Path jarPath = ysmJar.get();
         try {
+            LOGGER.info("Using Yes Steve Model jar for runtime symbol detection: {}", jarPath);
             String ysmVersion = YsmJarLocator.readYsmVersion(jarPath).orElse("unknown");
             String jarSha256 = YsmRuntimeSymbolCache.sha256(jarPath);
             Path cachePath = YsmRuntimeSymbolCache.cachePath(this.gameDirectory);
