@@ -20,8 +20,17 @@ public final class ElytraEquipmentLookup {
         return VisibleEquipmentLookup.findFirstVisibleCurio(entity, stack -> shouldRenderElytra(stack, entity));
     }
 
+    public static ItemStack findElytraOrNull(LivingEntity entity) {
+        ItemStack stack = findElytra(entity);
+        return stack.isEmpty() ? null : stack;
+    }
+
     public static boolean isHiddenCuriosElytra(LivingEntity entity, ItemStack stack) {
         return VisibleEquipmentLookup.hasHiddenMatchingCurio(entity, stack, hiddenStack -> shouldRenderElytra(hiddenStack, entity));
+    }
+
+    public static ItemStack filterHiddenCuriosElytra(LivingEntity entity, ItemStack stack) {
+        return isHiddenCuriosElytra(entity, stack) ? ItemStack.EMPTY : stack;
     }
 
     private static boolean shouldRenderElytra(ItemStack stack, LivingEntity entity) {
@@ -41,6 +50,12 @@ public final class ElytraEquipmentLookup {
                 ItemStack.class,
                 LivingEntity.class
         );
+        private static final Method CAN_ELYTRA_FLY_BC = findMethod(
+                "com.brandon3055.draconicevolution.items.equipment.IModularArmor",
+                "canElytraFlyBC",
+                ItemStack.class,
+                LivingEntity.class
+        );
 
         private DraconicEvolutionElytraCompat() {
         }
@@ -52,12 +67,19 @@ public final class ElytraEquipmentLookup {
         }
 
         private static boolean shouldRenderElytra(ItemStack stack, LivingEntity entity) {
-            if (DE_ELYTRA_VISIBLE == null) {
-                return false;
+            if (DE_ELYTRA_VISIBLE != null) {
+                try {
+                    return Boolean.TRUE.equals(DE_ELYTRA_VISIBLE.invoke(null, stack, entity));
+                } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+                    return false;
+                }
             }
 
+            if (CAN_ELYTRA_FLY_BC == null) {
+                return false;
+            }
             try {
-                return Boolean.TRUE.equals(DE_ELYTRA_VISIBLE.invoke(null, stack, entity));
+                return Boolean.TRUE.equals(CAN_ELYTRA_FLY_BC.invoke(stack.getItem(), stack, entity));
             } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
                 return false;
             }

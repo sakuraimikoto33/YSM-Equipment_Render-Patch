@@ -10,43 +10,43 @@ authors="${mod_authors}"
 description='''${mod_description}'''
 
 [[dependencies.${mod_id}]]
-    modId="neoforge"
-    type="required"
-    versionRange="${neo_version_range}"
+    modId="forge"
+    mandatory=true
+    versionRange="${forge_version_range}"
     ordering="NONE"
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
     modId="minecraft"
-    type="required"
+    mandatory=true
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
     modId="yes_steve_model"
-    type="required"
+    mandatory=true
     versionRange="${ysm_version_range}"
     ordering="AFTER"
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
     modId="curios"
-    type="optional"
+    mandatory=false
     versionRange="${curios_version_range}"
     ordering="AFTER"
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
     modId="draconicevolution"
-    type="optional"
+    mandatory=false
     versionRange="${draconic_evolution_version_range}"
     ordering="AFTER"
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
     modId="kaleidoscope_doll"
-    type="optional"
+    mandatory=false
     versionRange="${kaleidoscope_doll_version_range}"
     ordering="AFTER"
     side="CLIENT"

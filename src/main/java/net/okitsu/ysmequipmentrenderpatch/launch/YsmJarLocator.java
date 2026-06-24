@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 final class YsmJarLocator {
-    private static final String MODS_TOML = "META-INF/neoforge.mods.toml";
+    private static final String MODS_TOML = "META-INF/mods.toml";
     private static final String YSM_MOD_ID = "yes_steve_model";
     private static final Pattern STRING_ASSIGNMENT_PATTERN =
             Pattern.compile("^([A-Za-z0-9_.-]+)\\s*=\\s*([\"'])(.*?)\\2\\s*$");

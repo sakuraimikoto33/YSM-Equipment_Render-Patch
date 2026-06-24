@@ -1,6 +1,6 @@
 plugins {
     id 'java-library'
-    id 'net.neoforged.moddev' version '1.0.17'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
 }
 
 version = mod_version
@@ -11,20 +11,28 @@ base {
     archivesName = 'ysm-equipment-render-patch'
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
-neoForge {
-    version = project.neo_version
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+    copyIdeResources = true
 
-    mods {
-        "${mod_id}" {
-            sourceSet(sourceSets.main)
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
         }
     }
 }
 
 repositories {
-    maven { url = 'https://maven.neoforged.net/releases' }
+    maven { url = 'https://maven.minecraftforge.net' }
     maven {
         name = 'Modrinth'
         url = 'https://api.modrinth.com/maven'
@@ -39,7 +47,7 @@ configurations {
 }
 
 dependencies {
-    implementation "net.neoforged:neoforge:${neo_version}"
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     ysmMaven "maven.modrinth:yes-steve-model:${ysm_version}"
     compileOnly files(ysmJarFile).builtBy('resolveYsmJar')
 }
@@ -97,8 +105,8 @@ tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
         minecraft_version      : minecraft_version,
         minecraft_version_range: minecraft_version_range,
-        neo_version            : neo_version,
-        neo_version_range      : neo_version_range,
+        forge_version          : forge_version,
+        forge_version_range    : forge_version_range,
         loader_version_range   : loader_version_range,
         mod_id                 : mod_id,
         mod_name               : mod_name,
@@ -113,7 +121,7 @@ tasks.named('processResources', ProcessResources).configure {
     ]
     inputs.properties replaceProperties
 
-    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
         expand replaceProperties
     }
 }
@@ -126,3 +134,5 @@ tasks.withType(JavaCompile).configureEach {
 tasks.withType(Jar).configureEach {
     archiveVersion = mod_file_version
 }
+
+jar.finalizedBy('reobfJar')

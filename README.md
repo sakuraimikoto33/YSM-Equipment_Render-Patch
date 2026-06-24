@@ -16,12 +16,12 @@ It currently supports chest plates with Elytra functionality, the flight module 
 
 | What | Version |
 | --- | --- |
-| Minecraft | 1.21.1 |
-| NeoForge | 21.1.228+ |
-| Yes Steve Model | 2.6.0-neoforge+mc1.21.1+ |
-| Curios | 9.5.1+1.21.1+ — optional, for Curios slot equipment |
-| Draconic Evolution | 3.1.4.632+ — optional, for flight module Elytra display |
-| Kaleidoscope Doll | 1.4.1-neoforge+mc1.21.1+ — optional, for Curios head slot doll display |
+| Minecraft | 1.20.1 |
+| Forge | 47.4.20+ |
+| Yes Steve Model | 2.6.0-forge+mc1.20.1+ |
+| Curios | 5.14.1+1.20.1+ — optional, for Curios slot equipment |
+| Draconic Evolution | 3.1.2.621+ — optional, for flight module Elytra display |
+| Kaleidoscope Doll | 1.4.1-forge+mc1.20.1+ — optional, for Curios head slot doll display |
 
 ### Features
 
@@ -35,11 +35,11 @@ It currently supports chest plates with Elytra functionality, the flight module 
 
 ### Installation
 
-Download `ysm-equipment-render-patch-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model is installed.
+Download `ysm-equipment-render-patch-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model installed.
 
 ### Building
 
-1. Install JDK 21.
+1. Install JDK 17.
 2. Clone this repository.
 3. Run the build command:
 
@@ -66,12 +66,12 @@ The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modri
 
 | 項目 | バージョン |
 | --- | --- |
-| Minecraft | 1.21.1 |
-| NeoForge | 21.1.228+ |
-| Yes Steve Model | 2.6.0-neoforge+mc1.21.1+ |
-| Curios | 9.5.1+1.21.1+ — 任意、Curios スロット装備用 |
-| Draconic Evolution | 3.1.4.632+ — 任意、フライトモジュールのエリトラ表示用 |
-| Kaleidoscope Doll | 1.4.1-neoforge+mc1.21.1+ — 任意、Curios head スロットのドール表示用 |
+| Minecraft | 1.20.1 |
+| Forge | 47.4.20+ |
+| Yes Steve Model | 2.6.0-forge+mc1.20.1+ |
+| Curios | 5.14.1+1.20.1+ — 任意、Curios スロット装備用 |
+| Draconic Evolution | 3.1.2.621+ — 任意、フライトモジュールのエリトラ表示用 |
+| Kaleidoscope Doll | 1.4.1-forge+mc1.20.1+ — 任意、Curios head スロットのドール表示用 |
 
 ### 特徴
 
@@ -89,7 +89,7 @@ The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modri
 
 ### ビルド方法
 
-1. JDK 21 を導入します。
+1. JDK 17 を導入します。
 2. このリポジトリをクローンします。
 3. 以下のコマンドを実行します。
 

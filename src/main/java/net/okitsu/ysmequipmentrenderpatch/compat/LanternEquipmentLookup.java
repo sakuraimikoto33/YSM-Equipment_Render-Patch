@@ -63,7 +63,7 @@ public final class LanternEquipmentLookup {
     }
 
     private static TagKey<Item> itemTag(String namespace, String path) {
-        return TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(namespace, path));
+        return TagKey.create(Registries.ITEM, new ResourceLocation(namespace, path));
     }
 
     public record LanternEntry(ItemStack stack) {

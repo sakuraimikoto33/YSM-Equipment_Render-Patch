@@ -104,14 +104,29 @@ final class YsmSymbolAnalyzer implements Opcodes {
                 if ((method.access & ACC_STATIC) == 0 || !method.desc.equals(descriptor)) {
                     continue;
                 }
-                if (referencesField(method, "net/minecraft/world/item/Items", "ELYTRA")
-                        && referencesField(method, "net/minecraft/world/entity/EquipmentSlot", "CHEST")
-                        && referencesField(method, "net/minecraft/world/item/ItemStack", "EMPTY")) {
+                if (looksLikeElytraLookup(method)) {
                     return Optional.of(methodRef(classNode, method));
                 }
             }
         }
         return Optional.empty();
+    }
+
+    private static boolean looksLikeElytraLookup(MethodNode method) {
+        if (!referencesField(method, "net/minecraft/world/entity/EquipmentSlot", "CHEST")) {
+            return false;
+        }
+
+        if (referencesField(method, "net/minecraft/world/item/Items", "ELYTRA")
+                && referencesField(method, "net/minecraft/world/item/ItemStack", "EMPTY")) {
+            return true;
+        }
+
+        return referencesFieldOwnerAndDescriptor(
+                method,
+                "net/minecraft/world/item/Items",
+                "Lnet/minecraft/world/item/Item;"
+        ) && referencesFieldOwnerAndDescriptor(method, "net/minecraft/world/item/ItemStack", ITEM_STACK_DESC);
     }
 
     private static Optional<YsmRuntimeSymbols.MethodRef> findElytraRender(
@@ -557,6 +572,17 @@ final class YsmSymbolAnalyzer implements Opcodes {
             if (instruction instanceof FieldInsnNode fieldInsn
                     && fieldInsn.owner.equals(owner)
                     && fieldInsn.name.equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean referencesFieldOwnerAndDescriptor(MethodNode method, String owner, String descriptor) {
+        for (AbstractInsnNode instruction : method.instructions) {
+            if (instruction instanceof FieldInsnNode fieldInsn
+                    && fieldInsn.owner.equals(owner)
+                    && fieldInsn.desc.equals(descriptor)) {
                 return true;
             }
         }

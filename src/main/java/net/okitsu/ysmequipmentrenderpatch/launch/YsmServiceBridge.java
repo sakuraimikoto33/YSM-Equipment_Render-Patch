@@ -23,6 +23,11 @@ public final class YsmServiceBridge {
         return dispatcher != null && dispatcher.isHiddenCuriosElytra(entity, stack);
     }
 
+    public static Object filterHiddenCuriosElytra(Object entity, Object stack) {
+        GameDispatcher dispatcher = dispatcher(entity);
+        return dispatcher == null ? stack : dispatcher.filterHiddenCuriosElytra(entity, stack);
+    }
+
     public static void renderLantern(Object poseStack, Object bufferSource, int packedLight, Object customPlayerEntity, float partialTick) {
         GameDispatcher dispatcher = dispatcher(customPlayerEntity);
         if (dispatcher != null) {
@@ -60,6 +65,7 @@ public final class YsmServiceBridge {
         private final ChildFirstPatchClassLoader patchClassLoader;
         private final Method findElytra;
         private final Method isHiddenCuriosElytra;
+        private final Method filterHiddenCuriosElytra;
         private final Method renderLantern;
         private final Method renderKaleidoscopeDolls;
 
@@ -68,12 +74,18 @@ public final class YsmServiceBridge {
             this.patchClassLoader = new ChildFirstPatchClassLoader(gameClassLoader);
             this.findElytra = findMethod(
                     "net.okitsu.ysmequipmentrenderpatch.compat.ElytraEquipmentLookup",
-                    "findElytra",
+                    "findElytraOrNull",
                     "net.minecraft.world.entity.LivingEntity"
             );
             this.isHiddenCuriosElytra = findMethod(
                     "net.okitsu.ysmequipmentrenderpatch.compat.ElytraEquipmentLookup",
                     "isHiddenCuriosElytra",
+                    "net.minecraft.world.entity.LivingEntity",
+                    "net.minecraft.world.item.ItemStack"
+            );
+            this.filterHiddenCuriosElytra = findMethod(
+                    "net.okitsu.ysmequipmentrenderpatch.compat.ElytraEquipmentLookup",
+                    "filterHiddenCuriosElytra",
                     "net.minecraft.world.entity.LivingEntity",
                     "net.minecraft.world.item.ItemStack"
             );
@@ -103,6 +115,11 @@ public final class YsmServiceBridge {
 
         private boolean isHiddenCuriosElytra(Object entity, Object stack) {
             return Boolean.TRUE.equals(invoke(this.isHiddenCuriosElytra, entity, stack));
+        }
+
+        private Object filterHiddenCuriosElytra(Object entity, Object stack) {
+            Object filtered = invoke(this.filterHiddenCuriosElytra, entity, stack);
+            return filtered == null ? stack : filtered;
         }
 
         private void renderLantern(Object poseStack, Object bufferSource, int packedLight, Object customPlayerEntity, float partialTick) {

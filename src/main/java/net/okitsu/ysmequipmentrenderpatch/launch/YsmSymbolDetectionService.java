@@ -38,7 +38,7 @@ public final class YsmSymbolDetectionService implements ITransformationService {
     }
 
     @Override
-    public List<? extends ITransformer<?>> transformers() {
+    public List<ITransformer> transformers() {
         if (this.symbols == null || !this.symbols.isComplete()) {
             LOGGER.warn("Yes Steve Model runtime symbols were not detected. YSM Equipment Render Patch transformers are disabled.");
             return List.of();

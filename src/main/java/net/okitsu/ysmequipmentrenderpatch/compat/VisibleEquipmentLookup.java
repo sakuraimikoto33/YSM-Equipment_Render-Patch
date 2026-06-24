@@ -1,10 +1,7 @@
 package net.okitsu.ysmequipmentrenderpatch.compat;
 
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.capabilities.EntityCapability;
-import net.neoforged.neoforge.items.IItemHandler;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -14,9 +11,6 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 final class VisibleEquipmentLookup {
-    private static final EntityCapability<IItemHandler, Void> CURIOS_INVENTORY =
-            EntityCapability.createVoid(ResourceLocation.fromNamespaceAndPath("curios", "item_handler"), IItemHandler.class);
-
     private VisibleEquipmentLookup() {
     }
 
@@ -24,7 +18,7 @@ final class VisibleEquipmentLookup {
         if (CuriosVisibilityAccess.isAvailable()) {
             return CuriosVisibilityAccess.findFirstVisibleItem(entity, itemFilter);
         }
-        return findFirstCapabilityItem(entity, itemFilter);
+        return ItemStack.EMPTY;
     }
 
     static boolean hasHiddenMatchingCurio(LivingEntity entity, ItemStack expectedStack, Predicate<ItemStack> itemFilter) {
@@ -42,21 +36,6 @@ final class VisibleEquipmentLookup {
             return List.of();
         }
         return CuriosVisibilityAccess.findVisibleItemsInSlot(entity, slotIdentifier, itemFilter);
-    }
-
-    private static ItemStack findFirstCapabilityItem(LivingEntity entity, Predicate<ItemStack> itemFilter) {
-        IItemHandler curiosInventory = entity.getCapability(CURIOS_INVENTORY);
-        if (curiosInventory == null) {
-            return ItemStack.EMPTY;
-        }
-
-        for (int slot = 0; slot < curiosInventory.getSlots(); slot++) {
-            ItemStack stack = curiosInventory.getStackInSlot(slot);
-            if (itemFilter.test(stack)) {
-                return stack;
-            }
-        }
-        return ItemStack.EMPTY;
     }
 
     private static final class CuriosVisibilityAccess {
@@ -119,14 +98,17 @@ final class VisibleEquipmentLookup {
         }
 
         private static ItemStack findFirstVisibleItem(LivingEntity entity, Predicate<ItemStack> itemFilter) {
-            Object optional = invoke(GET_CURIOS_INVENTORY, null, entity);
-            Object handler = optional instanceof Optional<?> curiosOptional ? curiosOptional.orElse(null) : null;
+            Object handler = getCuriosHandler(entity);
             Object curios = invoke(GET_CURIOS, handler);
             if (!(curios instanceof Map<?, ?> curiosMap)) {
                 return ItemStack.EMPTY;
             }
 
             for (Object stacksHandler : curiosMap.values()) {
+                if (!isHandlerVisible(stacksHandler)) {
+                    continue;
+                }
+
                 ItemStack stack = findFirstVisibleItem(stacksHandler, itemFilter);
                 if (!stack.isEmpty()) {
                     return stack;
@@ -162,8 +144,7 @@ final class VisibleEquipmentLookup {
                 String slotIdentifier,
                 Predicate<ItemStack> itemFilter
         ) {
-            Object optional = invoke(GET_CURIOS_INVENTORY, null, entity);
-            Object handler = optional instanceof Optional<?> curiosOptional ? curiosOptional.orElse(null) : null;
+            Object handler = getCuriosHandler(entity);
             Object curios = invoke(GET_CURIOS, handler);
             if (!(curios instanceof Map<?, ?> curiosMap)) {
                 return List.of();
@@ -183,7 +164,7 @@ final class VisibleEquipmentLookup {
                 List<ItemStack> matches
         ) {
             if (!slotIdentifier.equals(invoke(GET_IDENTIFIER, stacksHandler))
-                    || !Boolean.TRUE.equals(invoke(IS_VISIBLE, stacksHandler))) {
+                    || !isHandlerVisible(stacksHandler)) {
                 return;
             }
 
@@ -212,8 +193,7 @@ final class VisibleEquipmentLookup {
                 ItemStack expectedStack,
                 Predicate<ItemStack> itemFilter
         ) {
-            Object optional = invoke(GET_CURIOS_INVENTORY, null, entity);
-            Object handler = optional instanceof Optional<?> curiosOptional ? curiosOptional.orElse(null) : null;
+            Object handler = getCuriosHandler(entity);
             Object curios = invoke(GET_CURIOS, handler);
             if (!(curios instanceof Map<?, ?> curiosMap)) {
                 return false;
@@ -241,7 +221,7 @@ final class VisibleEquipmentLookup {
             }
 
             for (int slot = 0; slot < slotCount.intValue(); slot++) {
-                if (isRenderable(renderStates, slot)) {
+                if (isHandlerVisible(stacksHandler) && isRenderable(renderStates, slot)) {
                     continue;
                 }
 
@@ -272,6 +252,23 @@ final class VisibleEquipmentLookup {
                     && Boolean.TRUE.equals(renders.get(slot));
         }
 
+        private static boolean isHandlerVisible(Object stacksHandler) {
+            return IS_VISIBLE == null || Boolean.TRUE.equals(invoke(IS_VISIBLE, stacksHandler));
+        }
+
+        private static Object getCuriosHandler(LivingEntity entity) {
+            Object optional = invoke(GET_CURIOS_INVENTORY, null, entity);
+            if (optional instanceof Optional<?> curiosOptional) {
+                return curiosOptional.orElse(null);
+            }
+
+            Object resolved = resolveLazyOptional(optional);
+            if (resolved instanceof Optional<?> resolvedOptional) {
+                return resolvedOptional.orElse(null);
+            }
+            return null;
+        }
+
         private static Method findMethod(String className, String methodName, Class<?>... parameterTypes) {
             try {
                 Method method = Class.forName(className, false, VisibleEquipmentLookup.class.getClassLoader())
@@ -290,6 +287,20 @@ final class VisibleEquipmentLookup {
 
             try {
                 return method.invoke(target, arguments);
+            } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
+                return null;
+            }
+        }
+
+        private static Object resolveLazyOptional(Object target) {
+            if (target == null) {
+                return null;
+            }
+
+            try {
+                Method method = target.getClass().getMethod("resolve");
+                method.setAccessible(true);
+                return method.invoke(target);
             } catch (ReflectiveOperationException | LinkageError | RuntimeException exception) {
                 return null;
             }

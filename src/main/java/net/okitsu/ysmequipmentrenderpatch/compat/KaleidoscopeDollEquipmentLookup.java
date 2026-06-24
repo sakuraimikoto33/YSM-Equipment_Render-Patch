@@ -12,7 +12,7 @@ import java.util.List;
 public final class KaleidoscopeDollEquipmentLookup {
     private static final TagKey<Item> ALL_DOLLS = TagKey.create(
             Registries.ITEM,
-            ResourceLocation.fromNamespaceAndPath("kaleidoscope_doll", "all_dolls")
+            new ResourceLocation("kaleidoscope_doll", "all_dolls")
     );
 
     private KaleidoscopeDollEquipmentLookup() {
