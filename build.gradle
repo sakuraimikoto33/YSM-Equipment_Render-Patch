@@ -68,7 +68,7 @@ tasks.register('resolveYsmJar') {
 
         var apiUrl = "https://api.modrinth.com/v2/project/${ysm_modrinth_project}/version"
         var connection = new URI(apiUrl).toURL().openConnection()
-        connection.setRequestProperty('User-Agent', "${mod_id}/${mod_file_version} (build script)")
+        connection.setRequestProperty('User-Agent', "${mod_id}/${mod_version} (build script)")
 
         var versions = new groovy.json.JsonSlurper().parse(connection.inputStream)
         var version = versions.find { it.version_number == ysm_version }
@@ -124,5 +124,5 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.withType(Jar).configureEach {
-    archiveVersion = mod_file_version
+    archiveVersion = "mc${minecraft_version}-${mod_version}"
 }

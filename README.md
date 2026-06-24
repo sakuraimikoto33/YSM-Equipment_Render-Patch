@@ -35,7 +35,7 @@ It currently supports chest plates with Elytra functionality, the flight module 
 
 ### Installation
 
-Download `ysm-equipment-render-patch-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model is installed.
+Download `ysm-equipment-render-patch-mc<mc-version>-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model is installed.
 
 ### Building
 
@@ -85,7 +85,7 @@ The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modri
 
 ### インストール方法
 
-`ysm-equipment-render-patch-<version>.jar`をダウンロードし、クライアント側の`mods/`フォルダに入れてください。Yes Steve Model がインストールされていることを確認してください。
+`ysm-equipment-render-patch-mc<mc-version>-<version>.jar`をダウンロードし、クライアント側の`mods/`フォルダに入れてください。Yes Steve Model がインストールされていることを確認してください。
 
 ### ビルド方法
 
