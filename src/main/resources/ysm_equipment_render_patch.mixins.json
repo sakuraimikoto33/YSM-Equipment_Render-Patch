@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.okitsu.ysmequipmentrenderpatch.mixin",
+  "plugin": "net.okitsu.ysmmapping.internal.mixin.YsmMappingMixinPlugin",
+  "refmapWrapper": "YsmReferenceMapper",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "YsmElytraEquipmentMixin",
+    "YsmElytraLayerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -19,6 +19,7 @@ It currently supports chest plates with Elytra functionality, the flight module 
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.228+ |
 | Yes Steve Model | 2.6.0-neoforge+mc1.21.1+ |
+| YSM Mapping API | 0.1.0+ |
 | Curios | 9.5.1+1.21.1+ — optional, for Curios slot equipment |
 | Draconic Evolution | 3.1.4.632+ — optional, for flight module Elytra display |
 | Kaleidoscope Doll | 1.4.1-neoforge+mc1.21.1+ — optional, for Curios head slot doll display |
@@ -35,7 +36,7 @@ It currently supports chest plates with Elytra functionality, the flight module 
 
 ### Installation
 
-Download `ysm-equipment-render-patch-mc<mc-version>-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model is installed.
+Download `ysm-equipment-render-patch-mc<mc-version>-<version>.jar` and place it in the client-side `mods/` folder. Make sure Yes Steve Model and YSM Mapping API are installed.
 
 ### Building
 
@@ -69,6 +70,7 @@ The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modri
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.228+ |
 | Yes Steve Model | 2.6.0-neoforge+mc1.21.1+ |
+| YSM Mapping API | 0.1.0+ |
 | Curios | 9.5.1+1.21.1+ — 任意、Curios スロット装備用 |
 | Draconic Evolution | 3.1.4.632+ — 任意、フライトモジュールのエリトラ表示用 |
 | Kaleidoscope Doll | 1.4.1-neoforge+mc1.21.1+ — 任意、Curios head スロットのドール表示用 |
@@ -85,7 +87,7 @@ The lantern swing behavior is based on [Toni's Immersive Lanterns](https://modri
 
 ### インストール方法
 
-`ysm-equipment-render-patch-mc<mc-version>-<version>.jar`をダウンロードし、クライアント側の`mods/`フォルダに入れてください。Yes Steve Model がインストールされていることを確認してください。
+`ysm-equipment-render-patch-mc<mc-version>-<version>.jar`をダウンロードし、クライアント側の`mods/`フォルダに入れてください。Yes Steve Model と YSM Mapping API がインストールされていることを確認してください。
 
 ### ビルド方法
 

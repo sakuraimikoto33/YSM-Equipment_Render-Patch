@@ -31,6 +31,16 @@ description='''${mod_description}'''
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
+    modId="ysm_mapping_api"
+    type="required"
+    versionRange="[0.1.0,)"
+    ordering="BEFORE"
+    side="CLIENT"
+
+[[mixins]]
+    config="ysm_equipment_render_patch.mixins.json"
+
+[[dependencies.${mod_id}]]
     modId="curios"
     type="optional"
     versionRange="${curios_version_range}"

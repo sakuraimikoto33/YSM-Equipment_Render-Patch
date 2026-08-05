@@ -5,7 +5,6 @@ plugins {
 
 version = mod_version
 group = mod_group_id
-def ysmJarFile = layout.projectDirectory.file("libs/${ysm_file_name}")
 
 base {
     archivesName = 'ysm-equipment-render-patch'
@@ -25,72 +24,11 @@ neoForge {
 
 repositories {
     maven { url = 'https://maven.neoforged.net/releases' }
-    maven {
-        name = 'Modrinth'
-        url = 'https://api.modrinth.com/maven'
-        content {
-            includeGroup 'maven.modrinth'
-        }
-    }
-}
-
-configurations {
-    ysmMaven
 }
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
-    ysmMaven "maven.modrinth:yes-steve-model:${ysm_version}"
-    compileOnly files(ysmJarFile).builtBy('resolveYsmJar')
-}
-
-tasks.register('resolveYsmJar') {
-    outputs.file(ysmJarFile)
-
-    doLast {
-        var output = ysmJarFile.asFile
-        if (output.exists()) {
-            return
-        }
-
-        output.parentFile.mkdirs()
-
-        try {
-            var resolved = configurations.ysmMaven.resolve().find { it.name.endsWith('.jar') }
-            if (resolved != null) {
-                java.nio.file.Files.copy(resolved.toPath(), output.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-                logger.lifecycle("Resolved Yes Steve Model from Maven: ${resolved.name}")
-                return
-            }
-        } catch (Exception ex) {
-            logger.lifecycle("Could not resolve Yes Steve Model from Maven; falling back to Modrinth direct download.")
-        }
-
-        var apiUrl = "https://api.modrinth.com/v2/project/${ysm_modrinth_project}/version"
-        var connection = new URI(apiUrl).toURL().openConnection()
-        connection.setRequestProperty('User-Agent', "${mod_id}/${mod_version} (build script)")
-
-        var versions = new groovy.json.JsonSlurper().parse(connection.inputStream)
-        var version = versions.find { it.version_number == ysm_version }
-        if (version == null) {
-            throw new GradleException("Could not find Yes Steve Model ${ysm_version} on Modrinth.")
-        }
-
-        var file = version.files.find { it.primary && it.filename == ysm_file_name }
-            ?: version.files.find { it.primary && it.filename.endsWith('.jar') }
-            ?: version.files.find { it.filename == ysm_file_name }
-            ?: version.files.find { it.filename.endsWith('.jar') }
-        if (file == null) {
-            throw new GradleException("Could not find a downloadable Yes Steve Model jar for ${ysm_version}.")
-        }
-
-        logger.lifecycle("Downloading Yes Steve Model from Modrinth: ${file.filename}")
-        output.withOutputStream { stream ->
-            new URI(file.url).toURL().withInputStream { input ->
-                stream << input
-            }
-        }
-    }
+    compileOnly 'net.okitsu.ysmmapping:api:0.1.0'
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -120,9 +58,46 @@ tasks.named('processResources', ProcessResources).configure {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    dependsOn tasks.named('resolveYsmJar')
 }
 
 tasks.withType(Jar).configureEach {
     archiveVersion = "mc${minecraft_version}-${mod_version}"
+}
+
+tasks.register('verifyDistributions') {
+    dependsOn tasks.named('jar')
+
+    doLast {
+        var archive = tasks.named('jar', Jar).get().archiveFile.get().asFile
+        var requiredEntries = [
+            'META-INF/ysm-mapping-api/requests-v1.json',
+            'ysm_equipment_render_patch.mixins.json'
+        ]
+        var forbiddenEntries = [
+            'META-INF/services/cpw.mods.modlauncher.api.ITransformationService'
+        ]
+
+        new java.util.zip.ZipFile(archive).withCloseable { zip ->
+            requiredEntries.each { entry ->
+                if (zip.getEntry(entry) == null) {
+                    throw new GradleException("Distribution is missing ${entry}")
+                }
+            }
+            forbiddenEntries.each { entry ->
+                if (zip.getEntry(entry) != null) {
+                    throw new GradleException("Distribution still contains ${entry}")
+                }
+            }
+            if (zip.entries().toList().any { it.name.startsWith('net/okitsu/ysmmapping/') }) {
+                throw new GradleException('Distribution embeds YSM Mapping API classes')
+            }
+            if (zip.entries().toList().any { it.name.startsWith('net/okitsu/ysmequipmentrenderpatch/launch/') }) {
+                throw new GradleException('Distribution still contains the legacy transformation service')
+            }
+        }
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn tasks.named('verifyDistributions')
 }

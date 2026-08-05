@@ -1,11 +1,24 @@
 package net.okitsu.ysmequipmentrenderpatch.runtime;
 
-import net.minecraft.client.Minecraft;
+import net.okitsu.ysmequipmentrenderpatch.YsmEquipmentRenderPatch;
+import net.okitsu.ysmmapping.api.MappingSnapshot;
+import net.okitsu.ysmmapping.api.YsmMappingApi;
+import net.okitsu.ysmmapping.api.YsmMethodSymbol;
+import net.okitsu.ysmmapping.api.YsmSymbolKey;
+import net.okitsu.ysmmapping.api.YsmSymbols;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.file.Path;
+import java.util.List;
 
 public final class YsmRuntimeSymbolsReflective {
+    private static final List<YsmSymbolKey<?>> SYMBOLS = List.of(
+            YsmSymbols.CUSTOM_PLAYER_ENTITY_GETTER,
+            YsmSymbols.CUSTOM_PLAYER_CURRENT_MODEL_GETTER,
+            YsmSymbols.ANIMATED_MODEL_RIGHT_WAIST_BONES_GETTER,
+            YsmSymbols.RENDER_UTILS_PREP_MATRIX_FOR_LOCATOR,
+            YsmSymbols.ANIMATED_MODEL_HEAD_BONES_GETTER
+    );
     private static volatile ResolvedMethods resolvedMethods;
 
     private YsmRuntimeSymbolsReflective() {
@@ -21,23 +34,31 @@ public final class YsmRuntimeSymbolsReflective {
     }
 
     private static ResolvedMethods resolve() {
-        Path cachePath = YsmRuntimeSymbolCache.cachePath(Minecraft.getInstance().gameDirectory.toPath());
-        YsmRuntimeSymbols symbols = YsmRuntimeSymbolCache.read(cachePath).orElse(null);
-        if (symbols == null || !symbols.isComplete()) {
+        try {
+            MappingSnapshot snapshot = YsmMappingApi.resolve(YsmEquipmentRenderPatch.MOD_ID, SYMBOLS);
+            ClassLoader classLoader = YsmRuntimeSymbolsReflective.class.getClassLoader();
+            ResolvedMethods methods = new ResolvedMethods(
+                    Reflector.findMethod(snapshot.require(YsmSymbols.CUSTOM_PLAYER_ENTITY_GETTER), classLoader),
+                    Reflector.findMethod(snapshot.require(YsmSymbols.CUSTOM_PLAYER_CURRENT_MODEL_GETTER), classLoader),
+                    Reflector.findMethod(snapshot.require(YsmSymbols.ANIMATED_MODEL_RIGHT_WAIST_BONES_GETTER), classLoader),
+                    Reflector.findMethod(snapshot.require(YsmSymbols.RENDER_UTILS_PREP_MATRIX_FOR_LOCATOR), classLoader),
+                    Reflector.findMethod(optional(snapshot, YsmSymbols.ANIMATED_MODEL_HEAD_BONES_GETTER), classLoader)
+            );
+            return methods.isComplete() ? methods : ResolvedMethods.EMPTY;
+        } catch (IOException | RuntimeException exception) {
             return ResolvedMethods.EMPTY;
         }
+    }
 
-        ClassLoader classLoader = YsmRuntimeSymbolsReflective.class.getClassLoader();
-        ResolvedMethods methods = new ResolvedMethods(
-                Reflector.findMethod(symbols.customPlayerGetEntity, classLoader),
-                Reflector.findMethod(symbols.customPlayerGetCurrentModel, classLoader),
-                Reflector.findMethod(symbols.animatedModelRightWaistBones, classLoader),
-                Reflector.findMethod(symbols.prepMatrixForLocator, classLoader),
-                Reflector.findMethod(symbols.animatedModelHeadBones, classLoader),
-                Reflector.findMethod(symbols.animatedModelAllHeadBone, classLoader),
-                Reflector.findMethod(symbols.prepMatrixForBone, classLoader)
-        );
-        return methods.isComplete() ? methods : ResolvedMethods.EMPTY;
+    private static YsmMethodSymbol optional(
+            MappingSnapshot snapshot,
+            YsmSymbolKey<YsmMethodSymbol> key
+    ) {
+        try {
+            return snapshot.require(key);
+        } catch (IllegalStateException exception) {
+            return null;
+        }
     }
 
     public record ResolvedMethods(
@@ -45,11 +66,9 @@ public final class YsmRuntimeSymbolsReflective {
             Method getCurrentModel,
             Method rightWaistBones,
             Method prepMatrixForLocator,
-            Method headBones,
-            Method allHeadBone,
-            Method prepMatrixForBone
+            Method headBones
     ) {
-        private static final ResolvedMethods EMPTY = new ResolvedMethods(null, null, null, null, null, null, null);
+        private static final ResolvedMethods EMPTY = new ResolvedMethods(null, null, null, null, null);
 
         public boolean isComplete() {
             return this.getEntity != null
