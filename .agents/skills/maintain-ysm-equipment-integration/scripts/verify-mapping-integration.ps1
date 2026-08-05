@@ -149,10 +149,6 @@ try {
                 )
                 "net.okitsu.ysmequipmentrenderpatch.mixin.YsmElytraLayerMixin" = @(
                     "ysm.client.renderer.elytra_layer.render.method"
-                    "ysm.client.custom_player.entity_getter.method"
-                    "ysm.client.custom_player.current_model_getter.method"
-                    "ysm.client.animated_model.right_waist_bones_getter.method"
-                    "ysm.client.render_utils.prep_matrix_for_locator.method"
                 )
             }
             foreach ($mixinName in $requirements.Keys) {
@@ -166,6 +162,16 @@ try {
                     if ($actual -notcontains $key) {
                         $errors.Add("Mixin requirement $mixinName is missing $key.")
                     }
+                }
+                $aliasedKeys = @($symbols | Where-Object {
+                    $null -ne $_.PSObject.Properties["sourceAlias"] -and $null -ne $_.sourceAlias
+                } |
+                    ForEach-Object { [string]$_.key })
+                $unexpected = @($actual | Where-Object { $_ -notin $aliasedKeys })
+                if ($unexpected.Count) {
+                    $message = "Mixin requirement $mixinName contains symbols without source aliases: " +
+                        ($unexpected -join ", ")
+                    $errors.Add($message)
                 }
             }
         }

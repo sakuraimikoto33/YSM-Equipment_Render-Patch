@@ -15,6 +15,11 @@ The patch requires these curated methods:
 
 `ysm.client.animated_model.head_bones_getter.method` is optional; an unresolved value disables only Kaleidoscope Doll head rendering.
 
+Only symbols whose stable aliases appear in compiled Mixin annotations belong in
+`mixinRequirements`. Reflection-only symbols remain in `symbols` and are resolved through
+`YsmMappingApi`; including them in `mixinRequirements` causes the Mapping API to reject the
+Mixin because those symbols intentionally have no source alias.
+
 ## Runtime and distribution
 
 Declare YSM-Mapping-API as a required loader dependency ordered before the patch, use the sibling repository through Gradle `includeBuild`, and compile against `net.okitsu.ysmmapping:api:0.1.0` without embedding it.
