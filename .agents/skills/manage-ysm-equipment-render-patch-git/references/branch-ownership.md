@@ -12,6 +12,6 @@ Commit `src/`, Gradle wrapper files, Minecraft-specific documentation, loader in
 
 ## Mixed files
 
-Treat `README.md`, root `build.gradle`, `settings.gradle`, and `gradle.properties` by semantic hunk. Repository-wide guidance belongs to `main`; Minecraft, loader, runtime distribution, dependency, or build hunks belong to the target `mc/*`.
+Treat `README.md`, localized root README files, root `build.gradle`, `settings.gradle`, and `gradle.properties` by semantic hunk. Repository-wide guidance belongs to `main`; Minecraft, loader, runtime distribution, dependency, or build hunks belong to the target `mc/*`.
 
 If path classification and semantic ownership disagree, treat the result as mixed and inspect it manually. Scripts must not decide semantic hunk ownership or resolve conflicts.

@@ -13,6 +13,7 @@
     )
     MixedPaths = @(
         "README.md"
+        "README_ja.md"
         "build.gradle"
         "settings.gradle"
         "gradle.properties"
