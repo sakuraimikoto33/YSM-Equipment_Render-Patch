@@ -1,0 +1,7 @@
+interface:
+  display_name: "Maintain YSM Equipment Integration"
+  short_description: "Maintain the YSM Mapping API integration contract"
+  default_prompt: "Use $maintain-ysm-equipment-integration to update or verify the Equipment Patch Mapping API integration."
+
+policy:
+  allow_implicit_invocation: true
