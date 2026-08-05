@@ -85,7 +85,8 @@ tasks.register('verifyDistributions') {
         var archive = tasks.named('jar', Jar).get().archiveFile.get().asFile
         var requiredEntries = [
             'META-INF/ysm-mapping-api/requests-v1.json',
-            'ysm_equipment_render_patch.mixins.json'
+            'ysm_equipment_render_patch.mixins.json',
+            'net/okitsu/ysmequipmentrenderpatch/mixin/YsmReferenceMapper.class'
         ]
         var forbiddenEntries = [
             'META-INF/services/cpw.mods.modlauncher.api.ITransformationService'
@@ -107,6 +108,15 @@ tasks.register('verifyDistributions') {
             }
             if (zip.entries().toList().any { it.name.startsWith('net/okitsu/ysmequipmentrenderpatch/launch/') }) {
                 throw new GradleException('Distribution still contains the legacy transformation service')
+            }
+            var mapperBytes = zip.getInputStream(zip.getEntry(
+                'net/okitsu/ysmequipmentrenderpatch/mixin/YsmReferenceMapper.class')).bytes
+            var mapperConstants = new String(mapperBytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+            if (mapperConstants.contains('YsmMappingReferenceMapper')) {
+                throw new GradleException('Legacy Mixin distribution loads the newer Mapping API refmap wrapper')
+            }
+            if (!mapperConstants.contains('YsmRuntimeMappings')) {
+                throw new GradleException('Legacy Mixin distribution does not use the loader-neutral mapping bridge')
             }
         }
 
