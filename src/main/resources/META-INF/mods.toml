@@ -31,6 +31,13 @@ description='''${mod_description}'''
     side="CLIENT"
 
 [[dependencies.${mod_id}]]
+    modId="ysm_mapping_api"
+    mandatory=true
+    versionRange="[0.1.0,)"
+    ordering="BEFORE"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
     modId="curios"
     mandatory=false
     versionRange="${curios_version_range}"

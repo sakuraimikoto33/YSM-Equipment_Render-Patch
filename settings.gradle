@@ -10,3 +10,9 @@ plugins {
 }
 
 rootProject.name = 'ysm-equipment-render-patch'
+
+if (file('../YSM-Mapping-API').exists()) {
+    includeBuild('../YSM-Mapping-API')
+} else {
+    includeBuild("../../YSM-Mapping-API/${rootDir.name}")
+}

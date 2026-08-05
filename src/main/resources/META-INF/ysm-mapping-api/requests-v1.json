@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "symbols": [
+    {
+      "key": "ysm.client.equipment.elytra_item_getter.method",
+      "kind": "METHOD",
+      "required": true,
+      "sourceAlias": {
+        "common": {
+          "owner": "net/okitsu/ysmequipmentrenderpatch/ysmref/EquipmentLookup",
+          "name": "elytraItemGetter",
+          "descriptor": "(Lnet/minecraft/world/entity/LivingEntity;)Lnet/minecraft/world/item/ItemStack;"
+        }
+      }
+    },
+    {
+      "key": "ysm.client.renderer.elytra_layer.render.method",
+      "kind": "METHOD",
+      "required": true,
+      "sourceAlias": {
+        "common": {
+          "owner": "net/okitsu/ysmequipmentrenderpatch/ysmref/ElytraLayer",
+          "name": "render",
+          "descriptor": "(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/okitsu/ysmequipmentrenderpatch/ysmref/CustomPlayer;FFFFFF)V"
+        }
+      }
+    },
+    { "key": "ysm.client.custom_player.entity_getter.method", "kind": "METHOD", "required": true },
+    { "key": "ysm.client.custom_player.current_model_getter.method", "kind": "METHOD", "required": true },
+    { "key": "ysm.client.animated_model.right_waist_bones_getter.method", "kind": "METHOD", "required": true },
+    { "key": "ysm.client.render_utils.prep_matrix_for_locator.method", "kind": "METHOD", "required": true },
+    { "key": "ysm.client.animated_model.head_bones_getter.method", "kind": "METHOD", "required": false }
+  ],
+  "mixinRequirements": {
+    "net.okitsu.ysmequipmentrenderpatch.mixin.YsmElytraEquipmentMixin": [
+      "ysm.client.equipment.elytra_item_getter.method"
+    ],
+    "net.okitsu.ysmequipmentrenderpatch.mixin.YsmElytraLayerMixin": [
+      "ysm.client.renderer.elytra_layer.render.method"
+    ]
+  }
+}
