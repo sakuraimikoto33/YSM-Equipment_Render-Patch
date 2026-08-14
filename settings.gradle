@@ -11,25 +11,4 @@ plugins {
 
 rootProject.name = 'ysm-equipment-render-patch'
 
-def targetGameVersionProperty = ['minecraft', 'version'].join('_')
-def targetGameVersion = providers.gradleProperty(targetGameVersionProperty).get()
-def gitCommonDirectory = providers.exec {
-    workingDir(rootDir)
-    commandLine('git', 'rev-parse', '--path-format=absolute', '--git-common-dir')
-}.standardOutput.asText.get().trim()
-def equipmentRepository = new File(gitCommonDirectory).parentFile
-def workspaceDirectory = equipmentRepository.parentFile
-def mappingApiWorktree = new File(
-    workspaceDirectory,
-    ".worktrees/YSM-Mapping-API/${targetGameVersion}"
-)
-
-if (new File(mappingApiWorktree, 'api/build.gradle.kts').isFile()) {
-    includeBuild(mappingApiWorktree)
-} else if (file('../YSM-Mapping-API/api/build.gradle.kts').isFile()) {
-    includeBuild('../YSM-Mapping-API')
-} else {
-    throw new GradleException(
-        "YSM-Mapping-API mc/${targetGameVersion} checkout was not found as a sibling or managed worktree."
-    )
-}
+apply from: 'gradle/ysm-mapping-api.settings.gradle'

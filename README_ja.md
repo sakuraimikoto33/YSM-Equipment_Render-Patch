@@ -52,13 +52,15 @@ YSM Mapping API 0.1.0 以降が必須です。Curios、Draconic Evolution、Kale
 
 ## ビルド方法
 
-対象 Minecraft バージョンのブランチをチェックアウトし、上記の Java バージョンを導入して次のコマンドを実行します。
+対象 Minecraft バージョンのブランチをチェックアウトし、上記の Java バージョンと Git を導入して次のコマンドを実行します。通常ビルドでは公開済み YSM Mapping API タグを毎回確認し、このブランチと Minecraft バージョンが完全一致する `0.1.0` 以上の最新安定版を選択します。`ysm_mapping_api_version` はタグ選択、`ysm_mapping_api_version_range` はLoader依存下限に使用し、両方に同じ安定版SemVerを指定します。
 
 ```bash
 ./gradlew build
 ```
 
 Windows では `gradlew.bat build` を使用します。生成された jar は `build/libs/` に出力されます。
+
+ローカルの YSM Mapping API checkout を使う場合は `-PysmMappingApiPath=<checkout>` を指定します。設定時に Minecraft バージョンと安定 API 版を検証します。オフラインビルドでは、このローカル上書きが必須です。
 
 ## クレジット
 
