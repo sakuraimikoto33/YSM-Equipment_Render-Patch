@@ -1,6 +1,6 @@
 # YSM Mapping API integration contract
 
-Keep the consumer contract on Mapping API `0.1.0`, request schema `1`, and curated definition revision `1` unless the user explicitly authorizes a version change.
+Keep both the Mapping API tag-selection floor (`ysm_mapping_api_version`) and loader dependency floor (`ysm_mapping_api_version_range`) on `0.1.0`, request schema `1`, and curated definition revision `1` unless the user explicitly authorizes a version change.
 
 ## Required surface
 
@@ -22,6 +22,6 @@ Mixin because those symbols intentionally have no source alias.
 
 ## Runtime and distribution
 
-Declare YSM-Mapping-API as a required loader dependency ordered before the patch, use the sibling repository through Gradle `includeBuild`, and compile against `net.okitsu.ysmmapping:api:0.1.0` without embedding it.
+Declare YSM-Mapping-API as a required loader dependency ordered before the patch. Resolve the newest stable Mapping API release at or above `ysm_mapping_api_version` whose Minecraft tag suffix exactly matches the target, and generate the loader-native lower-bound range from `ysm_mapping_api_version_range`. The two properties must contain the same stable SemVer. Alternatively, use an explicitly configured compatible local checkout through Gradle `includeBuild`. Never discover a sibling or managed workspace implicitly, and never embed Mapping API classes in the patch.
 
 Mixin targets and methods must use stable `net.okitsu.ysmequipmentrenderpatch.ysmref` aliases declared in `requests-v1.json`. The Mapping API plugin and reference-mapper wrapper own conversion to runtime YSM names. Do not add direct `com.elfmcys.yesstevemodel` names, a second YSM JAR analyzer, or a private symbol cache.
