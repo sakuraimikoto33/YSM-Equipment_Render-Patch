@@ -10,6 +10,8 @@ base {
     archivesName = 'ysm-equipment-render-patch'
 }
 
+def ysmMappingApiDependencyVersion = gradle.ext.ysmMappingApiDependencyVersion
+
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 neoForge {
@@ -28,7 +30,7 @@ repositories {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
-    compileOnly 'net.okitsu.ysmmapping:api:0.1.0'
+    compileOnly "net.okitsu.ysmmapping:api:${ysmMappingApiDependencyVersion}"
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -38,6 +40,7 @@ tasks.named('processResources', ProcessResources).configure {
         neo_version            : neo_version,
         neo_version_range      : neo_version_range,
         loader_version_range   : loader_version_range,
+        ysm_mapping_api_version_range: ysm_mapping_api_version_range,
         mod_id                 : mod_id,
         mod_name               : mod_name,
         mod_license            : mod_license,

@@ -33,7 +33,7 @@ description='''${mod_description}'''
 [[dependencies.${mod_id}]]
     modId="ysm_mapping_api"
     type="required"
-    versionRange="[0.1.0,)"
+    versionRange="[${ysm_mapping_api_version_range},)"
     ordering="BEFORE"
     side="CLIENT"
 

@@ -52,13 +52,15 @@ This mod is client-side only.
 
 ## Building
 
-Check out the branch matching the target Minecraft version, install the Java version listed above, and run:
+Check out the branch matching the target Minecraft version and install the Java version listed above plus Git. Each online build queries the published YSM Mapping API tags and selects the newest stable API version at or above `0.1.0` whose Minecraft version exactly matches this branch. `ysm_mapping_api_version` controls tag selection and `ysm_mapping_api_version_range` controls the loader dependency floor; both must contain the same stable SemVer.
 
 ```bash
 ./gradlew build
 ```
 
 On Windows, use `gradlew.bat build`. The generated jar is written to `build/libs/`.
+
+To use a local YSM Mapping API checkout instead, pass `-PysmMappingApiPath=<checkout>`. The checkout's Minecraft version and stable API version are validated before configuration. Offline builds require this local override.
 
 ## Credits
 
