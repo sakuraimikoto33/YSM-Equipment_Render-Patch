@@ -10,7 +10,7 @@ Read [integration-contract.md](references/integration-contract.md) before changi
 ## Workflow
 
 1. Run `scripts/verify-mapping-integration.ps1` before editing and record any expected legacy failures.
-2. Keep the Gradle included build, compile-only API dependency, loader metadata, request manifest, Mixin configuration, and Java symbol list aligned.
+2. Keep the Gradle latest-compatible source resolver, `ysm_mapping_api_version` selection floor, `ysm_mapping_api_version_range` loader floor, optional explicit included build, compile-only API dependency, loader metadata, request manifest, Mixin configuration, and Java symbol list aligned.
 3. Use curated `YsmSymbols` keys and stable consumer aliases. Never store or publish private-derived YSM owner or member names.
 4. Keep runtime mapping failures isolated: required mixins must be skipped safely, while optional rendering features may degrade independently.
 5. Remove superseded JAR discovery, bytecode analysis, and private cache code rather than maintaining a parallel mapping source.

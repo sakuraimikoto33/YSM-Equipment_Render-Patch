@@ -69,11 +69,29 @@ try {
 
         if ($settingsPath) {
             $settings = Get-Content -Raw -LiteralPath $settingsPath
-            Require-Text $settings 'includeBuild\s*\(\s*[''"]\.\./YSM-Mapping-API[''"]\s*\)' "settings.gradle must include ../YSM-Mapping-API." $errors
+            Require-Text $settings "apply from: 'gradle/ysm-mapping-api\.settings\.gradle'" "settings.gradle must apply the Mapping API resolver." $errors
+            if ($settings -match '(\.\./YSM-Mapping-API|\.worktrees[/\\]YSM-Mapping-API)') {
+                $errors.Add('settings.gradle must not discover Mapping API through workspace-relative paths.')
+            }
+        }
+        $propertiesPath = Require-File $root "gradle.properties" $errors
+        if ($propertiesPath) {
+            $properties = Get-Content -Raw -LiteralPath $propertiesPath
+            Require-Text $properties '(?m)^ysm_mapping_api_version=0\.1\.0\r?$' "Mapping API selection version must remain 0.1.0." $errors
+            Require-Text $properties '(?m)^ysm_mapping_api_version_range=0\.1\.0\r?$' "Mapping API loader dependency floor must remain 0.1.0." $errors
+        }
+        $resolverPath = Require-File $root "gradle/ysm-mapping-api.settings.gradle" $errors
+        if ($resolverPath) {
+            $resolver = Get-Content -Raw -LiteralPath $resolverPath
+            Require-Text $resolver 'git.*ls-remote.*--refs.*--tags' "Mapping API resolver must query remote tags." $errors
+            Require-Text $resolver 'ysm_mapping_api_version_range' "Mapping API resolver must validate the loader dependency floor." $errors
+            Require-Text $resolver 'ysmMappingApiPath' "Mapping API resolver must support an explicit local checkout." $errors
+            Require-Text $resolver 'producesModule\([''"]net\.okitsu\.ysmmapping:api[''"]\)' "Mapping API resolver must register the API source module." $errors
         }
         if ($buildPath) {
             $build = Get-Content -Raw -LiteralPath $buildPath
-            Require-Text $build 'net\.okitsu\.ysmmapping:api:0\.1\.0' "build.gradle must compile against Mapping API 0.1.0." $errors
+            Require-Text $build 'compileOnly\s+["'']net\.okitsu\.ysmmapping:api:\$\{ysmMappingApiDependencyVersion\}["'']' "build.gradle must compile against the dynamically resolved Mapping API version." $errors
+            Require-Text $build 'ysm_mapping_api_version_range' "build.gradle must expand the Mapping API loader dependency floor." $errors
         }
 
         $metadataRelative = if (Test-Path -LiteralPath (Join-Path $root "src/main/resources/META-INF/neoforge.mods.toml")) {
@@ -85,7 +103,7 @@ try {
         if ($metadataPath) {
             $metadata = Get-Content -Raw -LiteralPath $metadataPath
             Require-Text $metadata 'modId\s*=\s*"ysm_mapping_api"' "$metadataRelative must require ysm_mapping_api." $errors
-            Require-Text $metadata 'versionRange\s*=\s*"\[0\.1\.0,\)"' "$metadataRelative must keep the Mapping API dependency floor at 0.1.0." $errors
+            Require-Text $metadata 'versionRange\s*=\s*"\[\$\{ysm_mapping_api_version_range\},\)"' "$metadataRelative must derive the Mapping API floor from gradle.properties." $errors
             Require-Text $metadata 'ordering\s*=\s*"BEFORE"' "$metadataRelative must order Mapping API before the patch." $errors
         }
 
@@ -222,6 +240,7 @@ try {
         branch = $branch
         minecraftBranch = $isMinecraft
         mappingApiVersion = "0.1.0"
+        mappingApiVersionRange = "0.1.0"
         requestSchema = 1
         authorizedVersionChange = [bool]$AllowContractVersionChange
         errors = @($errors)
