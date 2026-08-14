@@ -1,7 +1,0 @@
-interface:
-  display_name: "Manage YSM Equipment Render Patch Git"
-  short_description: "Manage safe branches, commits, merges, and pushes"
-  default_prompt: "Use $manage-ysm-equipment-render-patch-git to inspect and safely manage this YSM Equipment Render Patch repository task."
-
-policy:
-  allow_implicit_invocation: true

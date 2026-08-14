@@ -24,6 +24,7 @@ param(
     [ValidateSet("None", "ForceWithLease", "Force")]
     [string]$ForceMode = "None",
     [string]$ForceAuthorization = "",
+    [string[]]$ValidationRepositoryRoot = @(),
     [switch]$AllowDirty,
     [switch]$SkipBuild
 )
@@ -56,9 +57,10 @@ function Invoke-Git {
     [pscustomobject]@{ ExitCode = $process.ExitCode; Lines = $lines; Text = $text; ErrorText = $errorText }
 }
 function Assert-PolicyKeys {
-    param([Collections.IDictionary]$Data, [string[]]$Required, [string]$Label)
+    param([Collections.IDictionary]$Data, [string[]]$Required, [string[]]$Optional = @(), [string]$Label)
     $missing = @($Required | Where-Object { -not $Data.Contains($_) })
-    $unknown = @($Data.Keys | Where-Object { $_ -notin $Required })
+    $known = @($Required) + @($Optional)
+    $unknown = @($Data.Keys | Where-Object { $_ -notin $known })
     if ($missing.Count) { throw "$Label is missing required keys: $($missing -join ', ')." }
     if ($unknown.Count) { throw "$Label contains unknown keys: $($unknown -join ', ')." }
 }
@@ -75,16 +77,23 @@ function Assert-RelativePolicyPath {
 function Load-RepositoryPolicy {
     $corePath = Join-Path $PSScriptRoot "repository-policy.psd1"
     $profilePath = Join-Path $script:RepositoryRoot ".agents/repository-profile.psd1"
+    $ownershipPath = Join-Path $script:RepositoryRoot ".agents/branch-ownership.psd1"
     if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) { throw "Repository profile missing: $profilePath" }
+    if (-not (Test-Path -LiteralPath $ownershipPath -PathType Leaf)) { throw "Branch ownership policy missing: $ownershipPath" }
     $core = Import-PowerShellDataFile -LiteralPath $corePath
     $profile = Import-PowerShellDataFile -LiteralPath $profilePath
+    $ownership = Import-PowerShellDataFile -LiteralPath $ownershipPath
     $coreKeys = @("MainBranch", "MinecraftBranchPattern", "ActiveMinecraftBranchesFile", "ContractVersionPatterns",
-        "DependencyVersionPatterns", "MainValidation", "MinecraftValidation")
-    $profileKeys = @("Name", "SharedPaths", "VersionPaths", "MixedPaths",
-        "ForbiddenTrackedPatterns", "PropagationSiblingRepositories", "RepositoryVerifier")
+        "DependencyVersionPatterns")
+    $profileKeys = @("Name", "ForbiddenTrackedPatterns", "ValidationRepositories", "RepositoryVerifier",
+        "RepositoryVerifierProfiles", "MainValidation", "MinecraftValidation")
+    $ownershipKeys = @("MainOnlyPaths", "SharedPaths", "MinecraftPaths", "MixedPaths")
     Assert-PolicyKeys -Data $core -Required $coreKeys -Label "Core repository policy"
     Assert-PolicyKeys -Data $profile -Required $profileKeys -Label "Repository profile"
-    if ([string]::IsNullOrWhiteSpace([string]$profile.Name)) { throw "Repository profile Name must not be empty." }
+    Assert-PolicyKeys -Data $ownership -Required $ownershipKeys -Label "Branch ownership policy"
+    if ([string]$profile.Name -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]*$') {
+        throw "Repository profile Name must be a safe logical identifier."
+    }
     if ([string]$core.MainBranch -ne "main") { throw "Core repository policy must use main as MainBranch." }
     try { [void][regex]::new([string]$core.MinecraftBranchPattern) }
     catch { throw "Invalid MinecraftBranchPattern: $($_.Exception.Message)" }
@@ -98,18 +107,37 @@ function Load-RepositoryPolicy {
         try { [void][regex]::new([string]$pattern) }
         catch { throw "Invalid ForbiddenTrackedPatterns regex '$pattern': $($_.Exception.Message)" }
     }
-    $siblings = @($profile.PropagationSiblingRepositories | ForEach-Object { ([string]$_).Trim() })
-    if (@($siblings | Where-Object { $_ -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]*$' }).Count) {
-        throw "PropagationSiblingRepositories contains an unsafe repository directory name."
+    $dependencies = @($profile.ValidationRepositories | ForEach-Object { ([string]$_).Trim() })
+    if (@($dependencies | Where-Object { $_ -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]*$' }).Count) {
+        throw "ValidationRepositories contains an unsafe logical repository name."
     }
-    if (@($siblings | Sort-Object -Unique).Count -ne $siblings.Count) {
-        throw "PropagationSiblingRepositories contains duplicate entries."
+    if (@($dependencies | Sort-Object -Unique).Count -ne $dependencies.Count) {
+        throw "ValidationRepositories contains duplicate entries."
+    }
+    $verifierProfiles = @($profile.RepositoryVerifierProfiles | ForEach-Object { ([string]$_).Trim() })
+    if (@($verifierProfiles | Where-Object { $_ -notin @("Main", "Minecraft") }).Count -or
+        @($verifierProfiles | Sort-Object -Unique).Count -ne $verifierProfiles.Count) {
+        throw "RepositoryVerifierProfiles must contain unique Main or Minecraft values."
+    }
+    foreach ($validationKey in @("MainValidation", "MinecraftValidation")) {
+        foreach ($task in @($profile[$validationKey])) {
+            if ([string]$task -notmatch '^[0-9A-Za-z][0-9A-Za-z:._-]*$') {
+                throw "$validationKey contains an unsafe Gradle task name."
+            }
+        }
     }
     $seen = @{}
-    foreach ($category in @("SharedPaths", "VersionPaths", "MixedPaths")) {
-        if (-not @($profile[$category]).Count) { throw "Repository profile $category must not be empty." }
-        foreach ($value in @($profile[$category])) {
-            $normalized = Assert-RelativePolicyPath -Value ([string]$value) -Label $category -AllowPrefix
+    foreach ($category in $ownershipKeys) {
+        $values = @($ownership[$category])
+        if ($category -ne "MainOnlyPaths" -and -not $values.Count) {
+            throw "Branch ownership policy $category must not be empty."
+        }
+        foreach ($value in $values) {
+            $normalized = if ($category -eq "MainOnlyPaths") {
+                Assert-RelativePolicyPath -Value ([string]$value) -Label $category
+            } else {
+                Assert-RelativePolicyPath -Value ([string]$value) -Label $category -AllowPrefix
+            }
             $key = $normalized.ToLowerInvariant()
             if ($seen.ContainsKey($key)) {
                 throw "Ownership path '$normalized' appears in both $($seen[$key]) and $category."
@@ -128,6 +156,7 @@ function Load-RepositoryPolicy {
     $merged = [ordered]@{}
     foreach ($key in $coreKeys) { $merged[$key] = $core[$key] }
     foreach ($key in $profileKeys) { $merged[$key] = $profile[$key] }
+    foreach ($key in $ownershipKeys) { $merged[$key] = $ownership[$key] }
     $merged
 }
 
@@ -154,6 +183,32 @@ function Current-Branch {
     $value = Invoke-Git -Root $Root -Arguments @("symbolic-ref", "--quiet", "--short", "HEAD") -AllowFailure
     if ($value.ExitCode -eq 0) { return $value.Text.Trim() }
     return $null
+}
+function Resolve-ValidationRepositoryMap {
+    $required = @($script:Policy.ValidationRepositories)
+    $resolved = @{}
+    foreach ($candidate in @($ValidationRepositoryRoot)) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        $root = (Resolve-Path -LiteralPath $candidate).Path
+        $reported = (Invoke-Git -Root $root -Arguments @("rev-parse", "--show-toplevel")).Text.Trim()
+        if ([IO.Path]::GetFullPath($reported) -ne [IO.Path]::GetFullPath($root)) {
+            throw "Validation repository root mismatch: expected '$root', found '$reported'."
+        }
+        $profilePath = Join-Path $root ".agents/repository-profile.psd1"
+        if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
+            throw "Validation repository profile missing: $profilePath"
+        }
+        $profile = Import-PowerShellDataFile -LiteralPath $profilePath
+        $name = ([string]$profile.Name).Trim()
+        if ($name -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]*$') { throw "Unsafe validation repository Name '$name'." }
+        if ($resolved.ContainsKey($name)) { throw "Duplicate validation repository Name '$name'." }
+        $resolved[$name] = $root
+    }
+    $missing = @($required | Where-Object { -not $resolved.ContainsKey([string]$_) })
+    if ($missing.Count -and -not $SkipBuild) {
+        throw "Missing explicit -ValidationRepositoryRoot values for: $($missing -join ', ')."
+    }
+    $resolved
 }
 function Branch-Exists {
     param([Parameter(Mandatory)][string]$Name)
@@ -313,11 +368,16 @@ function Policy-Category {
     foreach ($pattern in @($script:Policy.ForbiddenTrackedPatterns)) {
         if ($Candidate -match $pattern) { return "Forbidden" }
     }
+    foreach ($prefix in @($script:Policy.MainOnlyPaths)) {
+        if ($Candidate -eq $prefix -or $Candidate.StartsWith("$prefix/", [StringComparison]::Ordinal)) {
+            return "MainOnly"
+        }
+    }
     foreach ($prefix in @($script:Policy.SharedPaths)) {
         if ($Candidate -eq $prefix -or $Candidate.StartsWith("$prefix/", [StringComparison]::Ordinal) -or
             ($prefix.EndsWith("-") -and $Candidate.StartsWith($prefix, [StringComparison]::Ordinal))) { return "Shared" }
     }
-    foreach ($prefix in @($script:Policy.VersionPaths)) {
+    foreach ($prefix in @($script:Policy.MinecraftPaths)) {
         if ($Candidate -eq $prefix -or $Candidate.StartsWith("$prefix/", [StringComparison]::Ordinal) -or
             ($prefix.EndsWith("-") -and $Candidate.StartsWith($prefix, [StringComparison]::Ordinal))) { return "Minecraft" }
     }
@@ -325,6 +385,52 @@ function Policy-Category {
         if ($Candidate -eq $prefix -or $Candidate.StartsWith("$prefix/", [StringComparison]::Ordinal)) { return "Mixed" }
     }
     return "Unknown"
+}
+function MainOnly-Paths {
+    $values = @($script:Policy.MainOnlyPaths)
+    if (-not $values.Count) { return @() }
+    @(Normalize-Paths -Values $values)
+}
+function Shared-ComparisonPathspecs {
+    $result = [Collections.Generic.List[string]]::new()
+    foreach ($path in @(Normalize-Paths -Values @($script:Policy.SharedPaths | Where-Object { -not $_.EndsWith('-') }))) {
+        $result.Add($path)
+    }
+    foreach ($path in @(MainOnly-Paths)) { $result.Add(":(exclude)$path") }
+    @($result)
+}
+function Test-MainOnlyPathPresent {
+    param([Parameter(Mandatory)][string]$Revision, [string]$Root = $script:RepositoryRoot)
+    $paths = @(MainOnly-Paths)
+    if (-not $paths.Count) { return $false }
+    [bool]@((Invoke-Git -Root $Root -Arguments (@("ls-tree", "-r", "--name-only", $Revision, "--") + $paths)).Lines |
+        Where-Object { $_ }).Count
+}
+function Remove-MainOnlyPaths {
+    param([string]$Root = $script:RepositoryRoot)
+    $paths = @(MainOnly-Paths)
+    if ($paths.Count) {
+        [void](Invoke-Git -Root $Root -Arguments (@("rm", "-r", "--ignore-unmatch", "--") + $paths))
+    }
+}
+function Start-MainMergeExcludingMainOnly {
+    param([Parameter(Mandatory)][string]$Root, [Parameter(Mandatory)][string]$Main,
+        [Parameter(Mandatory)][string]$Context)
+    $merge = Invoke-Git -Root $Root -Arguments @("merge", "--no-ff", "--no-commit", $Main) -AllowFailure
+    if ($merge.ExitCode -ne 0) {
+        $unmerged = @((Invoke-Git -Root $Root -Arguments @("diff", "--name-only", "--diff-filter=U", "--")).Lines |
+            Where-Object { $_ })
+        $unexpected = @($unmerged | Where-Object { (Policy-Category -Candidate $_) -ne "MainOnly" })
+        if (-not $unmerged.Count -or $unexpected.Count) {
+            throw "${Context}: $($merge.Text) $($merge.ErrorText)"
+        }
+    }
+    Remove-MainOnlyPaths -Root $Root
+    $remaining = @((Invoke-Git -Root $Root -Arguments @("diff", "--name-only", "--diff-filter=U", "--")).Lines |
+        Where-Object { $_ })
+    if ($remaining.Count) { throw "${Context}: unresolved paths remain: $($remaining -join ', ')." }
+    [ordered]@{ mergeInProgress = (Invoke-Git -Root $Root -Arguments @("rev-parse", "--verify", "-q", "MERGE_HEAD") -AllowFailure).ExitCode -eq 0;
+        output = $merge.Text; error = $merge.ErrorText }
 }
 function Contract-Version-Lines {
     $diff = (Invoke-Git -Arguments @("diff", "--no-ext-diff", "--unified=0", "HEAD", "--")).Lines
@@ -388,10 +494,13 @@ function Assert-Policy {
         if ((Invoke-Git -Arguments @("merge-base", "--is-ancestor", $main, $branch) -AllowFailure).ExitCode -ne 0) {
             throw "$main is not an ancestor of $branch."
         }
-        $shared = @(Normalize-Paths -Values @($script:Policy.SharedPaths | Where-Object { -not $_.EndsWith('-') }))
+        $shared = @(Shared-ComparisonPathspecs)
         $different = Invoke-Git -Arguments (@("diff", "--quiet", "$main..$branch", "--") + $shared) -AllowFailure
         if ($different.ExitCode -eq 1) { throw "Shared paths differ between $main and $branch." }
         if ($different.ExitCode -gt 1) { throw "Unable to compare shared paths for ${branch}: $($different.ErrorText)" }
+        if (-not $PermitDirty -and (Test-MainOnlyPathPresent -Revision $branch)) {
+            throw "Main-only paths are tracked on ${branch}: $((MainOnly-Paths) -join ', ')."
+        }
     }
     $badMerge = @((Invoke-Git -Arguments @("log", "--first-parent", "--merges", "--format=%H%x09%s", $main)).Lines |
         Where-Object { $_ -match '(?i)merge.*mc/' })
@@ -418,23 +527,34 @@ function New-Log {
         [guid]::NewGuid().ToString("N"))
 }
 function Run-DomainVerifier {
-    param([string]$Root)
+    param([string]$Root, [string]$Profile)
+    if ($Profile -notin @($script:Policy.RepositoryVerifierProfiles)) { return $null }
     $path = Join-Path $Root ([string]$script:Policy.RepositoryVerifier)
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Repository verifier missing: $path" }
     $log = New-Log -Label "domain-policy"
-    & $path -RepoRoot $Root -AllowContractVersionChange:$ContractVersionAuthorized *> $log
-    $succeeded = $?
+    $arguments = @{
+        RepoRoot = $Root
+        AllowContractVersionChange = [bool]$ContractVersionAuthorized
+    }
+    $command = Get-Command -Name $path -CommandType ExternalScript
+    if ($command.Parameters.ContainsKey("SkipBuild")) { $arguments.SkipBuild = [bool]$SkipBuild }
+    Push-Location -LiteralPath $Root
+    try {
+        & $path @arguments *> $log
+        $succeeded = $?
+    } finally { Pop-Location }
     if (-not $succeeded) { throw "Domain policy failed. log=$log" }
     return $log
 }
 function Run-Build {
     param([string]$Root, [string]$Profile)
     if ($SkipBuild) { return $null }
-    $wrapper = Join-Path $Root "gradlew.bat"
-    if (-not (Test-Path -LiteralPath $wrapper -PathType Leaf)) { throw "Gradle wrapper missing: $wrapper" }
     $tasks = if ($Profile -eq "Main") { @($script:Policy.MainValidation) }
         elseif ($Profile -eq "Minecraft") { @($script:Policy.MinecraftValidation) }
         else { throw "Unknown validation profile: $Profile" }
+    if (-not @($tasks).Count) { return $null }
+    $wrapper = Join-Path $Root "gradlew.bat"
+    if (-not (Test-Path -LiteralPath $wrapper -PathType Leaf)) { throw "Gradle wrapper missing: $wrapper" }
     $log = New-Log -Label "$Profile-build"
     Push-Location -LiteralPath $Root
     try {
@@ -462,7 +582,7 @@ function Run-Validation {
         elseif ($branch -and $branch -match [string]$script:Policy.MinecraftBranchPattern) { "Minecraft" }
         else { throw "Unsupported branch '$branch'." }
     $logs = [Collections.Generic.List[string]]::new()
-    if (-not $SkipRepositoryPolicy) { $domain = Run-DomainVerifier -Root $Root; if ($domain) { $logs.Add($domain) } }
+    if (-not $SkipRepositoryPolicy) { $domain = Run-DomainVerifier -Root $Root -Profile $profile; if ($domain) { $logs.Add($domain) } }
     $build = Run-Build -Root $Root -Profile $profile; if ($build) { $logs.Add($build) }
     [ordered]@{ profile = $profile; policy = $policy; logs = @($logs) }
 }
@@ -522,24 +642,39 @@ function Prepare-MinecraftBranch {
     $main = [string]$script:Policy.MainBranch
     $mainTip = (Invoke-Git -Arguments @("rev-parse", $main)).Text.Trim()
     $needsMain = (Invoke-Git -Arguments @("merge-base", "--is-ancestor", $main, $BaseBranch) -AllowFailure).ExitCode -ne 0
-    $expectedTree = (Invoke-Git -Arguments @("rev-parse", "$baseTip^{tree}")).Text.Trim()
-    if ($needsMain) {
-        $temp = Join-Path ([IO.Path]::GetTempPath()) ("mc-branch-preflight-" + [guid]::NewGuid().ToString("N"))
-        [void](Invoke-Git -Arguments @("worktree", "add", "--detach", $temp, $BaseBranch))
-        try {
-            $merge = Invoke-Git -Root $temp -Arguments @("merge", "--no-ff", "--no-commit", $main) -AllowFailure
-            if ($merge.ExitCode -ne 0) { throw "main merge preflight failed: $($merge.Text) $($merge.ErrorText)" }
-            $expectedTree = (Invoke-Git -Root $temp -Arguments @("write-tree")).Text.Trim()
-        } finally {
-            [void](Invoke-Git -Root $temp -Arguments @("merge", "--abort") -AllowFailure)
-            [void](Invoke-Git -Arguments @("worktree", "remove", "--force", $temp) -AllowFailure)
+    $temp = Join-Path ([IO.Path]::GetTempPath()) ("mc-branch-preflight-" + [guid]::NewGuid().ToString("N"))
+    [void](Invoke-Git -Arguments @("worktree", "add", "--detach", $temp, $BaseBranch))
+    try {
+        if ($needsMain) {
+            [void](Start-MainMergeExcludingMainOnly -Root $temp -Main $main -Context "main merge preflight failed")
+        } else {
+            Remove-MainOnlyPaths -Root $temp
         }
+        $expectedTree = (Invoke-Git -Root $temp -Arguments @("write-tree")).Text.Trim()
+    } finally {
+        [void](Invoke-Git -Root $temp -Arguments @("merge", "--abort") -AllowFailure)
+        [void](Invoke-Git -Arguments @("worktree", "remove", "--force", $temp) -AllowFailure)
     }
     if (Branch-Exists -Name $target) { throw "Target branch appeared during preflight: $target" }
     if ((Invoke-Git -Arguments @("rev-parse", $BaseBranch)).Text.Trim() -ne $baseTip) { throw "Base branch moved during preflight: $BaseBranch" }
     if ((Invoke-Git -Arguments @("rev-parse", $main)).Text.Trim() -ne $mainTip) { throw "$main moved during preflight." }
     [void](Invoke-Git -Arguments @("switch", "-c", $target, $baseTip))
-    if ($needsMain) { [void](Invoke-Git -Arguments @("merge", "--no-ff", $mainTip, "-m", "Merge branch 'main' into $target")) }
+    $mergeState = if ($needsMain) {
+        Start-MainMergeExcludingMainOnly -Root $script:RepositoryRoot -Main $mainTip -Context "main merge failed for $target"
+    } else {
+        Remove-MainOnlyPaths
+        [ordered]@{ mergeInProgress = $false }
+    }
+    $pendingTree = (Invoke-Git -Arguments @("write-tree")).Text.Trim()
+    $headTree = (Invoke-Git -Arguments @("rev-parse", "HEAD^{tree}")).Text.Trim()
+    if ([bool]$mergeState.mergeInProgress -or $pendingTree -ne $headTree) {
+        $commitMessage = if ([bool]$mergeState.mergeInProgress) {
+            "Merge branch 'main' into $target"
+        } else {
+            "Remove main-only paths from $target"
+        }
+        [void](Invoke-Git -Arguments @("commit", "-m", $commitMessage))
+    }
     $actualTree = (Invoke-Git -Arguments @("rev-parse", "HEAD^{tree}")).Text.Trim()
     if ($actualTree -ne $expectedTree) { throw "Created branch tree differs from preflight for $target." }
     [ordered]@{ operation = "PrepareMinecraftBranch"; target = $target; exists = $false; created = $true;
@@ -736,7 +871,7 @@ function Capture-ActiveWorktreeChanges {
         $snapshot = Working-Tree-Snapshot -Root $worktree -BaseTree ([string]$item.overlayTree)
         foreach ($changed in @($snapshot.Paths)) {
             $category = Policy-Category -Candidate $changed
-            if ($category -in @("Shared", "Forbidden", "Unknown")) {
+            if ($category -in @("MainOnly", "Shared", "Forbidden", "Unknown")) {
                 throw "Version work changed a non-version path on ${branch}: $changed ($category)."
             }
         }
@@ -826,8 +961,9 @@ function Commit-Task {
     $categories = @($scopes | ForEach-Object { Policy-Category -Candidate $_ } | Sort-Object -Unique)
     if ($categories -contains "Forbidden" -or $categories -contains "Unknown") { throw "Commit scope contains forbidden or unknown ownership." }
     $current = Current-Branch
-    if ($categories -contains "Shared" -and $current -ne [string]$script:Policy.MainBranch) {
-        throw "Shared paths, including the active Minecraft branch file, may be committed only on main."
+    if (@($categories | Where-Object { $_ -in @("Shared", "MainOnly") }).Count -and
+        $current -ne [string]$script:Policy.MainBranch) {
+        throw "Shared and main-only paths may be committed only on main."
     }
     if ($categories -contains "Minecraft" -and $current -notmatch [string]$script:Policy.MinecraftBranchPattern) {
         throw "Minecraft-owned paths may be committed only on their matching mc/* branch."
@@ -927,8 +1063,7 @@ function Merge-Main {
         $temp = Join-Path ([IO.Path]::GetTempPath()) ("main-merge-preflight-" + [guid]::NewGuid().ToString("N"))
         [void](Invoke-Git -Arguments @("worktree", "add", "--detach", $temp, $branch))
         try {
-            $merge = Invoke-Git -Root $temp -Arguments @("merge", "--no-ff", "--no-commit", $main) -AllowFailure
-            if ($merge.ExitCode -ne 0) { throw "Merge preflight failed for ${branch}: $($merge.Text) $($merge.ErrorText)" }
+            [void](Start-MainMergeExcludingMainOnly -Root $temp -Main $main -Context "Merge preflight failed for $branch")
             Apply-Patch -Root $temp -PatchPath ([string]$item.versionPatch)
             $finalTree = (Working-Tree-Snapshot -Root $temp).Tree
             $validation = Run-Validation -Root $temp -PermitDirty -SkipRepositoryPolicy -ProfileOverride "Minecraft"
@@ -949,7 +1084,12 @@ function Merge-Main {
     foreach ($item in $preflight) {
         $target = [string]$item.path; $branch = [string]$item.branch
         Clear-CapturedWorkingTree -Root $target -Item $item.capture
-        [void](Invoke-Git -Root $target -Arguments @("merge", "--no-ff", $main, "-m", "Merge branch 'main' into $branch"))
+        $mergeState = Start-MainMergeExcludingMainOnly -Root $target -Main $main -Context "Merge failed for $branch"
+        $pendingTree = (Invoke-Git -Root $target -Arguments @("write-tree")).Text.Trim()
+        $headTree = (Invoke-Git -Root $target -Arguments @("rev-parse", "HEAD^{tree}")).Text.Trim()
+        if ([bool]$mergeState.mergeInProgress -or $pendingTree -ne $headTree) {
+            [void](Invoke-Git -Root $target -Arguments @("commit", "-m", "Merge branch 'main' into $branch"))
+        }
         Apply-Patch -Root $target -PatchPath ([string]$item.capture.versionPatch)
         $tree = (Working-Tree-Snapshot -Root $target).Tree
         if ($tree -ne [string]$item.finalTree) { throw "Actual restored tree differs from preflight for $branch." }
@@ -980,18 +1120,23 @@ function Propagate-Main {
     $baseHeads = [ordered]@{}
     $required = [Collections.Generic.List[string]]::new()
     $skipped = [Collections.Generic.List[object]]::new()
-    $shared = @(Normalize-Paths -Values @($script:Policy.SharedPaths | Where-Object { -not $_.EndsWith('-') }))
+    $shared = @(Shared-ComparisonPathspecs)
     foreach ($branch in $active) {
         $head = (Invoke-Git -Arguments @("rev-parse", $branch)).Text.Trim()
         $baseHeads[$branch] = $head
         if ((Invoke-Git -Arguments @("merge-base", "--is-ancestor", $main, $branch) -AllowFailure).ExitCode -eq 0) {
-            $different = Invoke-Git -Arguments (@("diff", "--quiet", "$main..$branch", "--") + $shared) -AllowFailure
-            if ($different.ExitCode -ne 0) { throw "Already-propagated branch has different shared paths: $branch" }
-            $skipped.Add([ordered]@{ branch = $branch; head = $head; reason = "main-already-ancestor" })
+            if (Test-MainOnlyPathPresent -Revision $branch) {
+                $required.Add($branch)
+            } else {
+                $different = Invoke-Git -Arguments (@("diff", "--quiet", "$main..$branch", "--") + $shared) -AllowFailure
+                if ($different.ExitCode -ne 0) { throw "Already-propagated branch has different shared paths: $branch" }
+                $skipped.Add([ordered]@{ branch = $branch; head = $head; reason = "main-already-ancestor" })
+            }
         } else {
             $required.Add($branch)
         }
     }
+    $validationRepositories = Resolve-ValidationRepositoryMap
     $preflight = [Collections.Generic.List[object]]::new()
     foreach ($branch in @($required)) {
         $temp = Join-Path ([IO.Path]::GetTempPath()) ("main-propagate-preflight-" + [guid]::NewGuid().ToString("N"))
@@ -1006,28 +1151,22 @@ function Propagate-Main {
             [void](Invoke-Git -Root $clone -Arguments @("switch", "--quiet", "--detach", "origin/$branch"))
             $siblingClones = [Collections.Generic.List[string]]::new()
             if (-not $SkipBuild) {
-                $workspace = Split-Path -Parent $script:RepositoryRoot
-                foreach ($sibling in @($script:Policy.PropagationSiblingRepositories)) {
-                    $source = Join-Path $workspace ([string]$sibling)
-                    if (-not (Test-Path -LiteralPath $source -PathType Container)) {
-                        throw "Propagation sibling repository is missing: $source"
-                    }
+                foreach ($sibling in @($script:Policy.ValidationRepositories)) {
+                    $source = [string]$validationRepositories[[string]$sibling]
                     $destination = Join-Path $temp ([string]$sibling)
                     [void](Invoke-Git -Root $temp -Arguments @("clone", "--quiet", "--no-hardlinks", "--no-checkout",
                         $source, $destination))
                     $siblingBranch = Invoke-Git -Root $destination -Arguments @("rev-parse", "--verify",
                         "origin/$branch") -AllowFailure
                     if ($siblingBranch.ExitCode -ne 0) {
-                        throw "Propagation sibling lacks ${branch}: $sibling"
+                        throw "Validation repository lacks ${branch}: $sibling"
                     }
                     [void](Invoke-Git -Root $destination -Arguments @("switch", "--quiet", "--detach", "origin/$branch"))
                     $siblingClones.Add($destination)
                 }
             }
-            $merge = Invoke-Git -Root $clone -Arguments @("merge", "--no-ff", "--no-commit", "origin/$mainBranch") -AllowFailure
-            if ($merge.ExitCode -ne 0) {
-                throw "Propagation preflight merge failed for ${branch}: $($merge.Text) $($merge.ErrorText)"
-            }
+            [void](Start-MainMergeExcludingMainOnly -Root $clone -Main "origin/$mainBranch" `
+                -Context "Propagation preflight merge failed for $branch")
             $tree = (Invoke-Git -Root $clone -Arguments @("write-tree")).Text.Trim()
             $siblingValidations = [Collections.Generic.List[object]]::new()
             foreach ($siblingClone in @($siblingClones)) {
@@ -1058,11 +1197,17 @@ function Propagate-Main {
         foreach ($item in $preflight) {
             $branch = [string]$item.branch
             [void](Invoke-Git -Arguments @("switch", "--quiet", $branch))
-            $merge = Invoke-Git -Arguments @("merge", "--no-ff", $main, "-m",
-                "Merge branch 'main' into $branch") -AllowFailure
-            if ($merge.ExitCode -ne 0) {
-                [void](Invoke-Git -Arguments @("merge", "--abort") -AllowFailure)
-                throw "Propagation merge failed for ${branch}: $($merge.Text) $($merge.ErrorText)"
+            $mergeState = Start-MainMergeExcludingMainOnly -Root $script:RepositoryRoot -Main $main `
+                -Context "Propagation merge failed for $branch"
+            $pendingTree = (Invoke-Git -Arguments @("write-tree")).Text.Trim()
+            $headTree = (Invoke-Git -Arguments @("rev-parse", "HEAD^{tree}")).Text.Trim()
+            if ([bool]$mergeState.mergeInProgress -or $pendingTree -ne $headTree) {
+                $commitMessage = if ([bool]$mergeState.mergeInProgress) {
+                    "Merge branch 'main' into $branch"
+                } else {
+                    "Remove main-only paths from $branch"
+                }
+                [void](Invoke-Git -Arguments @("commit", "-m", $commitMessage))
             }
             $tree = (Invoke-Git -Arguments @("rev-parse", "HEAD^{tree}")).Text.Trim()
             if ($tree -ne [string]$item.tree) { throw "Propagation tree differs from preflight for $branch." }
