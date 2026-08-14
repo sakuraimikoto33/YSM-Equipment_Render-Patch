@@ -10,12 +10,26 @@ $workflowDirectory = Split-Path -Parent $workflow
 $sourceRoot = @(& git -C $workflowDirectory rev-parse --show-toplevel 2>&1)
 if ($LASTEXITCODE -ne 0) { throw "Cannot locate the source repository: $($sourceRoot -join [Environment]::NewLine)" }
 $sourceRoot = "$($sourceRoot[-1])"
-$profileSource = Join-Path $sourceRoot ".agents/repository-profile.psd1"
 $core = Import-PowerShellDataFile -LiteralPath (Join-Path $workflowDirectory "repository-policy.psd1")
-$profile = Import-PowerShellDataFile -LiteralPath $profileSource
+$profile = [ordered]@{
+    Name = "workflow-fixture"
+    ForbiddenTrackedPatterns = @("(^|/)forbidden/")
+    ValidationRepositories = @()
+    RepositoryVerifier = ".agents/verify-domain.ps1"
+    RepositoryVerifierProfiles = @("Main", "Minecraft")
+    MainValidation = @("clean", "build")
+    MinecraftValidation = @("clean", "build", "verifyDistributions")
+}
+$ownership = [ordered]@{
+    MainOnlyPaths = @("main-only.txt")
+    SharedPaths = @(".agents", "shared")
+    MinecraftPaths = @("version")
+    MixedPaths = @("mixed.txt", "gradle.properties", "gradlew.bat")
+}
 $policy = [ordered]@{}
 foreach ($key in $core.Keys) { $policy[$key] = $core[$key] }
 foreach ($key in $profile.Keys) { $policy[$key] = $profile[$key] }
+foreach ($key in $ownership.Keys) { $policy[$key] = $ownership[$key] }
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ("repository-workflow-tests-" + [guid]::NewGuid().ToString("N"))
 $script:Passed = 0
 $git = (Get-Command git -CommandType Application).Source
@@ -36,9 +50,38 @@ function Set-File {
 }
 function Install-RepositoryProfile {
     param([string]$Root)
-    $destination = Join-Path $Root ".agents/repository-profile.psd1"
-    [void](New-Item -ItemType Directory -Force -Path (Split-Path -Parent $destination))
-    Copy-Item -LiteralPath $profileSource -Destination $destination
+    Set-File $Root ".agents/repository-profile.psd1" @'
+@{
+    Name = "workflow-fixture"
+    ForbiddenTrackedPatterns = @(
+        "(^|/)forbidden/"
+    )
+    ValidationRepositories = @()
+    RepositoryVerifier = ".agents/verify-domain.ps1"
+    RepositoryVerifierProfiles = @("Main", "Minecraft")
+    MainValidation = @("clean", "build")
+    MinecraftValidation = @("clean", "build", "verifyDistributions")
+}
+'@
+    Set-File $Root ".agents/branch-ownership.psd1" @'
+@{
+    MainOnlyPaths = @(
+        "main-only.txt"
+    )
+    SharedPaths = @(
+        ".agents"
+        "shared"
+    )
+    MinecraftPaths = @(
+        "version"
+    )
+    MixedPaths = @(
+        "mixed.txt"
+        "gradle.properties"
+        "gradlew.bat"
+    )
+}
+'@
     Set-File $Root ([string]$policy.RepositoryVerifier) "param([string]`$RepoRoot,[switch]`$AllowContractVersionChange)`n'{`"success`":true}'`n"
 }
 function Invoke-Workflow {
@@ -61,6 +104,18 @@ function Assert-ProfileRejected {
         [IO.File]::WriteAllBytes($path, $bytes)
     }
 }
+function Assert-OwnershipRejected {
+    param([string]$Root, [string]$Content, [string]$Pattern)
+    $path = Join-Path $Root ".agents/branch-ownership.psd1"
+    $bytes = [IO.File]::ReadAllBytes($path)
+    try {
+        [IO.File]::WriteAllText($path, $Content, [Text.UTF8Encoding]::new($false))
+        $failure = Invoke-Workflow $Root @("-Operation", "Inspect") -ExpectFailure
+        Assert-True ($failure.Json.error -match $Pattern) "Invalid ownership was not rejected with '$Pattern'."
+    } finally {
+        [IO.File]::WriteAllBytes($path, $bytes)
+    }
+}
 
 try {
     [void](New-Item -ItemType Directory -Force -Path $testRoot)
@@ -71,11 +126,17 @@ try {
     [void](Git $repo @("config", "core.autocrlf", "false"))
     Install-RepositoryProfile $repo
 
-    $shared = [string]$policy.SharedPaths[0]
-    $versionScope = [string]$policy.VersionPaths[0]
+    # Use a leaf below a shared directory; the first shared entry itself is
+    # .agents, which is already a directory containing the fixture profile.
+    $shared = "shared/value.txt"
+    $mainOnly = if ($policy.Contains("MainOnlyPaths") -and @($policy.MainOnlyPaths).Count) {
+        [string]$policy.MainOnlyPaths[0]
+    } else { "" }
+    $versionScope = [string]$policy.MinecraftPaths[0]
     $mixed = [string]$policy.MixedPaths[0]
     $activeFile = [string]$policy.ActiveMinecraftBranchesFile
     Set-File $repo $shared "shared`n"
+    if ($mainOnly) { Set-File $repo $mainOnly "main only`n" }
     Set-File $repo $mixed "mixed`n"
     Set-File $repo $activeFile "mc/1.21.1`n"
     Set-File $repo ".agents/overlay-shared.txt" "shared base`n"
@@ -109,11 +170,15 @@ try {
     Assert-True ($categories[$versionScope] -eq "Minecraft") "Minecraft classification failed."
     Assert-True ($categories[$mixed] -eq "Mixed") "Mixed classification failed."
     Assert-True ($categories["unknown.txt"] -eq "Unknown") "Unknown classification failed."
+    if ($mainOnly) {
+        $classification = Invoke-Workflow $repo @("-Operation", "Classify", "-Path", $mainOnly)
+        Assert-True ($classification.Json.paths[0].category -eq "MainOnly") "Main-only classification failed."
+    }
     foreach ($candidate in @($policy.SharedPaths)) {
         $classification = Invoke-Workflow $repo @("-Operation", "Classify", "-Path", [string]$candidate)
         Assert-True ($classification.Json.paths[0].category -eq "Shared") "Shared profile path was misclassified: $candidate"
     }
-    foreach ($candidate in @($policy.VersionPaths)) {
+    foreach ($candidate in @($policy.MinecraftPaths)) {
         $classification = Invoke-Workflow $repo @("-Operation", "Classify", "-Path", [string]$candidate)
         Assert-True ($classification.Json.paths[0].category -eq "Minecraft") "Minecraft profile path was misclassified: $candidate"
     }
@@ -158,6 +223,10 @@ try {
     Assert-True ($created.Json.branch -eq "mc/1.22.0") "New branch was not checked out."
     Assert-True ((Git $repo @("merge-base", "--is-ancestor", "main", "mc/1.22.0") -AllowFailure).ExitCode -eq 0) "main is not an ancestor."
     Assert-True ((Git $repo @("show", "mc/1.22.0:main-marker.txt") -AllowFailure).ExitCode -eq 0) "main content is missing."
+    if ($mainOnly) {
+        Assert-True ((Git $repo @("cat-file", "-e", "mc/1.22.0`:$mainOnly") -AllowFailure).ExitCode -ne 0) `
+            "New Minecraft branch retained a main-only path."
+    }
 
     Set-File $repo (Join-Path $versionScope "value.txt") "pending`n"
     $snapshot = Invoke-Workflow $repo @("-Operation", "Snapshot", "-Path", $versionScope)
@@ -274,8 +343,26 @@ try {
     Assert-True ([int]$propagated.Json.worktreeCount -eq $worktreeCountBefore) "Main-only propagation changed worktree count."
     foreach ($branch in @("mc/1.21.1", "mc/1.22.0")) {
         Assert-True ((Git $repo @("rev-parse", "$branch^2")).Text.Trim() -eq $propagatedMain) "Propagation was not a no-ff main merge."
+        if ($mainOnly) {
+            Assert-True ((Git $repo @("cat-file", "-e", "${branch}:$mainOnly") -AllowFailure).ExitCode -ne 0) `
+                "Propagation retained a main-only path on $branch."
+        }
     }
     Assert-True ((Git $repo @("rev-parse", "mc/inactive")).Text.Trim() -eq $inactiveTip) "Propagation moved an inactive branch."
+    if ($mainOnly) {
+        Set-File $repo $mainOnly "main-only update`n"
+        [void](Git $repo @("add", $mainOnly)); [void](Git $repo @("commit", "-q", "-m", "Update main-only fixture"))
+        $mainOnlyUpdate = (Git $repo @("rev-parse", "main")).Text.Trim()
+        $mainOnlyPropagation = Invoke-Workflow $repo @("-Operation", "PropagateMain", "-Authorization", "ExplicitUser",
+            "-ConfirmExecution", "-SkipBuild")
+        Assert-True (@($mainOnlyPropagation.Json.merged).Count -eq 2) "Main-only modify/delete conflicts were not propagated."
+        foreach ($branch in @("mc/1.21.1", "mc/1.22.0")) {
+            Assert-True ((Git $repo @("rev-parse", "$branch^2")).Text.Trim() -eq $mainOnlyUpdate) `
+                "Main-only update was not represented by a no-ff merge on $branch."
+            Assert-True ((Git $repo @("cat-file", "-e", "${branch}:$mainOnly") -AllowFailure).ExitCode -ne 0) `
+                "Main-only update reintroduced its path on $branch."
+        }
+    }
     $tipsBeforeOverlay = @{}
     foreach ($ref in @("main", "mc/1.21.1", "mc/1.22.0", "mc/inactive")) {
         $tipsBeforeOverlay[$ref] = (Git $repo @("rev-parse", $ref)).Text.Trim()
@@ -450,10 +537,13 @@ try {
     Assert-ProfileRejected $repo ($profileText.Replace(
         "        `"$([string]$profile.ForbiddenTrackedPatterns[0])`"",
         "        `"[`"")) "Invalid ForbiddenTrackedPatterns regex"
-    Assert-ProfileRejected $repo ($profileText.Replace(
-        "        `"$shared`"", "        `"C:/absolute`"")) "unsafe repository-relative path"
-    Assert-ProfileRejected $repo ($profileText.Replace(
-        "        `"$mixed`"", "        `"$shared`"")) "appears in both"
+    $ownershipPath = Join-Path $repo ".agents/branch-ownership.psd1"
+    $ownershipText = [IO.File]::ReadAllText($ownershipPath)
+    $sharedRoot = [string]$ownership.SharedPaths[1]
+    Assert-OwnershipRejected $repo ($ownershipText.Replace(
+        "        `"$sharedRoot`"", "        `"C:/absolute`"")) "unsafe repository-relative path"
+    Assert-OwnershipRejected $repo ($ownershipText.Replace(
+        "        `"$mixed`"", "        `"$sharedRoot`"")) "appears in both"
 
     $propagateConflict = Join-Path $testRoot "propagate-conflict"
     & $git init -q -b main $propagateConflict
