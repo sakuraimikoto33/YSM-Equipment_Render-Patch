@@ -1,7 +1,0 @@
-interface:
-  display_name: "Rewrite YSM Equipment Render Patch History"
-  short_description: "Safely rewrite YSM-Equipment_Render-Patch Git history"
-  default_prompt: "Use $rewrite-ysm-equipment-render-patch-history for this explicitly requested history rewrite with backups and state comparison."
-
-policy:
-  allow_implicit_invocation: true
