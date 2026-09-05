@@ -4,6 +4,7 @@
     SharedPaths = @(
         "AGENTS.md"
         ".agents"
+        ".github"
         ".gitignore"
     )
     MinecraftPaths = @(
