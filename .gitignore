@@ -29,3 +29,7 @@ forge*changelog.txt
 
 ### VS Code ###
 .vscode/
+
+# Python workflow tests
+__pycache__/
+*.py[cod]
