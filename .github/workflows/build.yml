@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - "mc/**"
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: Build and evaluate a release without source changes
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   actions: read
@@ -11,15 +18,25 @@ permissions:
 
 jobs:
   changes:
-    name: Inspect pushed commits
-    if: github.event.deleted != true
+    name: Inspect pushed commits or force a manual build
+    if: github.event_name == 'workflow_dispatch' || github.event.deleted != true
     runs-on: ubuntu-latest
     outputs:
-      mod_changed: ${{ steps.detect.outputs.mod_changed }}
-      commits_scanned: ${{ steps.detect.outputs.commits_scanned }}
+      mod_changed: ${{ steps.force.outputs.mod_changed || steps.detect.outputs.mod_changed }}
+      commits_scanned: ${{ steps.force.outputs.commits_scanned || steps.detect.outputs.commits_scanned }}
 
     steps:
+      - name: Record forced manual build
+        id: force
+        if: github.event_name == 'workflow_dispatch' && inputs.force_build
+        shell: bash
+        run: |
+          echo "mod_changed=true" >> "$GITHUB_OUTPUT"
+          echo "commits_scanned=0" >> "$GITHUB_OUTPUT"
+          echo "## Forced manual build" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Checkout complete pushed history
+        if: github.event_name == 'push'
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.after }}
@@ -28,6 +45,7 @@ jobs:
 
       - name: Detect mod changes across the push
         id: detect
+        if: github.event_name == 'push'
         shell: bash
         env:
           BEFORE_SHA: ${{ github.event.before }}
@@ -49,7 +67,9 @@ jobs:
   build:
     name: Build ${{ github.ref_name }}
     needs: changes
-    if: needs.changes.outputs.mod_changed == 'true'
+    if: >-
+      startsWith(github.ref, 'refs/heads/mc/') &&
+      needs.changes.outputs.mod_changed == 'true'
     runs-on: ubuntu-latest
     outputs:
       artifact_name: ${{ steps.artifact.outputs.name }}
